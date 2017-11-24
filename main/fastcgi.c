@@ -201,20 +201,22 @@ typedef struct _fcgi_hash {
 
 typedef struct _fcgi_req_hook 	fcgi_req_hook;
 
+/* fcgi请求钩子 */
 struct _fcgi_req_hook {
-	void(*on_accept)();
+	void(*on_accept)(); /* 函数指针，指向监听的accept函数 */
 	void(*on_read)();
 	void(*on_close)();
 };
 
+/* fcgi请求结构体 */
 struct _fcgi_request {
-	int            listen_socket;
+	int            listen_socket; 	/* 监听的socket文件句柄 */
 	int            tcp;
 	int            fd;
 	int            id;
 	int            keep;
 #ifdef TCP_NODELAY
-	int            nodelay;
+	int            nodelay; 		/* 禁止TCP的Nagle算法 */
 #endif
 	int            closed;
 	int            in_len;
@@ -223,7 +225,7 @@ struct _fcgi_request {
 	fcgi_header   *out_hdr;
 
 	unsigned char *out_pos;
-	unsigned char  out_buf[1024*8];
+	unsigned char  out_buf[1024*8];	/* 输出缓冲区 */
 	unsigned char  reserved[sizeof(fcgi_end_request_rec)];
 
 	fcgi_req_hook  hook;
