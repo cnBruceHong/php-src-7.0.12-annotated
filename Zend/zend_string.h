@@ -87,19 +87,24 @@ static zend_always_inline zend_ulong zend_string_hash_val(zend_string *s)
 	return ZSTR_H(s);
 }
 
+/* 把字符串的哈希值设置为0 */
 static zend_always_inline void zend_string_forget_hash_val(zend_string *s)
 {
+	/* s->h = 0 */
 	ZSTR_H(s) = 0;
 }
 
+/* 获取字符串的引用计数 */
 static zend_always_inline uint32_t zend_string_refcount(const zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
+		/* 如果不是内部字符串，返回引用计数 */
 		return GC_REFCOUNT(s);
 	}
 	return 1;
 }
 
+/* 增加字符串的引用计数 */
 static zend_always_inline uint32_t zend_string_addref(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
@@ -108,21 +113,26 @@ static zend_always_inline uint32_t zend_string_addref(zend_string *s)
 	return 1;
 }
 
+/* 对一个zend_string进行引用计数减一操作 */
 static zend_always_inline uint32_t zend_string_delref(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
+		/* 如果不是内部字符串，s->gc.refcount自减一 */
 		return --GC_REFCOUNT(s);
 	}
 	return 1;
 }
 
+/* 申请一个zend字符串 */
 static zend_always_inline zend_string *zend_string_alloc(size_t len, int persistent)
 {
 	zend_string *ret = (zend_string *)pemalloc(ZEND_MM_ALIGNED_SIZE(_ZSTR_STRUCT_SIZE(len)), persistent);
 
+	/* 新字符串gc的引用计数值默认为1 ret->gc.refcount = 1 */
 	GC_REFCOUNT(ret) = 1;
 #if 1
 	/* optimized single assignment */
+	/* 设置数据类型 */
 	GC_TYPE_INFO(ret) = IS_STRING | ((persistent ? IS_STR_PERSISTENT : 0) << 8);
 #else
 	GC_TYPE(ret) = IS_STRING;
@@ -130,7 +140,7 @@ static zend_always_inline zend_string *zend_string_alloc(size_t len, int persist
 	GC_INFO(ret) = 0;
 #endif
 	zend_string_forget_hash_val(ret);
-	ZSTR_LEN(ret) = len;
+	ZSTR_LEN(ret) = len; /* ret->len = len */
 	return ret;
 }
 
@@ -161,17 +171,22 @@ static zend_always_inline zend_string *zend_string_init(const char *str, size_t 
 	return ret;
 }
 
+/* 字符串复制 */
 static zend_always_inline zend_string *zend_string_copy(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
+		/* 如果不是内部字符串，对s的引用计数+1 */
 		GC_REFCOUNT(s)++;
 	}
+	/* 直接返回s，实际上并没有申请新的内存，对象复用了 */
 	return s;
 }
 
+/* 与copy函数不同，这个函数重新申请内存并复制了 */
 static zend_always_inline zend_string *zend_string_dup(zend_string *s, int persistent)
 {
 	if (ZSTR_IS_INTERNED(s)) {
+		/* 如果是内部字符串，直接返回 */
 		return s;
 	} else {
 		return zend_string_init(ZSTR_VAL(s), ZSTR_LEN(s), persistent);

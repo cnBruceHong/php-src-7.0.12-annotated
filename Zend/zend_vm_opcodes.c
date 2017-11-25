@@ -197,6 +197,7 @@ const char *zend_vm_opcodes_map[173] = {
 	"ZEND_DECLARE_ANON_INHERITED_CLASS",
 };
 
+/* 通过opcode获取对应的opcache的对应的处理函数 */
 ZEND_API const char* zend_get_opcode_name(zend_uchar opcode) {
 	return zend_vm_opcodes_map[opcode];
 }

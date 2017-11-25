@@ -133,7 +133,7 @@ int zend_load_extension(const char *path)
 #endif
 }
 
-
+/* 注册一个扩展 */
 int zend_register_extension(zend_extension *new_extension, DL_HANDLE handle)
 {
 #if ZEND_EXTENSIONS_SUPPORT
@@ -254,18 +254,20 @@ ZEND_API int zend_get_resource_handle(zend_extension *extension)
 	}
 }
 
-
+/* 通过扩展名称从已经加载的扩展表查找 */
 ZEND_API zend_extension *zend_get_extension(const char *extension_name)
 {
 	zend_llist_element *element;
 
+	/* zend_extensions是一个链表，这里是遍历整个zend_extensions链表 */
 	for (element = zend_extensions.head; element; element = element->next) {
 		zend_extension *extension = (zend_extension *) element->data;
-
+		/* 比较遍历到的扩展名称和参数中的名称 */
 		if (!strcmp(extension->name, extension_name)) {
-			return extension;
+			return extension; /* 找到啦,返回指向扩展的指针 */
 		}
 	}
+	/* 遍历的最坏结果就是什么都找不到，时间复杂度O(N) */
 	return NULL;
 }
 

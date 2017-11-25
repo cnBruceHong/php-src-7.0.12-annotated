@@ -42,6 +42,7 @@ static void _str_dtor(zval *zv)
 }
 #endif
 
+/* 初始化zend内部字符串 */
 void zend_interned_strings_init(void)
 {
 #ifndef ZTS
@@ -55,6 +56,7 @@ void zend_interned_strings_init(void)
 	CG(interned_strings).u.flags |= HASH_FLAG_INITIALIZED;
 
 	/* interned empty string */
+	/* 定义一个内部空字符串 */
 	str = zend_string_alloc(sizeof("")-1, 1);
 	ZSTR_VAL(str)[0] = '\000';
 	CG(empty_string) = zend_new_interned_string_int(str);

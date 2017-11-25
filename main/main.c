@@ -1772,16 +1772,19 @@ void php_request_shutdown(void *dummy)
 	php_deactivate_ticks();
 
 	/* 1. Call all possible shutdown functions registered with register_shutdown_function() */
+	/* 1. 调用所有已经注册了的,并且有register_shutdown_function函数的shutdown函数 */
 	if (PG(modules_activated)) zend_try {
 		php_call_shutdown_functions();
 	} zend_end_try();
 
 	/* 2. Call all possible __destruct() functions */
+	/* 2. 调用所有可能的__destruct函数 */
 	zend_try {
 		zend_call_destructors();
 	} zend_end_try();
 
 	/* 3. Flush all output buffers */
+	/* 3. 将输出缓存区冲刷出去 */
 	zend_try {
 		zend_bool send_buffer = SG(request_info).headers_only ? 0 : 1;
 
@@ -1799,26 +1802,31 @@ void php_request_shutdown(void *dummy)
 	} zend_end_try();
 
 	/* 4. Reset max_execution_time (no longer executing php code after response sent) */
+	/* 4. 重置『最大执行时间』，不再将相应发出后的php代码执行时间算入在内 */
 	zend_try {
 		zend_unset_timeout();
 	} zend_end_try();
 
 	/* 5. Call all extensions RSHUTDOWN functions */
+	/* 5. 调用所有的扩展请求关闭函数 RSHUTDOWN */
 	if (PG(modules_activated)) {
 		zend_deactivate_modules();
 	}
 
 	/* 6. Shutdown output layer (send the set HTTP headers, cleanup output handlers, etc.) */
+	/* 6. 关闭输出层，发送HTTP头部信息，清理输出函数等等 */
 	zend_try {
 		php_output_deactivate();
 	} zend_end_try();
 
 	/* 7. Free shutdown functions */
+	/* 7. 释放关闭函数 */
 	if (PG(modules_activated)) {
 		php_free_shutdown_functions();
 	}
 
 	/* 8. Destroy super-globals */
+	/* 8. 销毁超全局变量 */
 	zend_try {
 		int i;
 

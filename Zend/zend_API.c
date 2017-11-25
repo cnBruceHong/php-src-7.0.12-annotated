@@ -1983,6 +1983,7 @@ ZEND_API void zend_destroy_modules(void) /* {{{ */
 }
 /* }}} */
 
+/* 注册zend核心扩展 */
 ZEND_API zend_module_entry* zend_register_module_ex(zend_module_entry *module) /* {{{ */
 {
 	size_t name_len;
@@ -1998,18 +1999,21 @@ ZEND_API zend_module_entry* zend_register_module_ex(zend_module_entry *module) /
 #endif
 
 	/* Check module dependencies */
+	/* 检查模块的依赖 */
 	if (module->deps) {
 		const zend_module_dep *dep = module->deps;
 
 		while (dep->name) {
+			/* 遍历整个dep数组，检查type,如果有冲突的扩展则输出错误信息，返回返回 */
 			if (dep->type == MODULE_DEP_CONFLICTS) {
 				name_len = strlen(dep->name);
 				lcname = zend_string_alloc(name_len, 0);
 				zend_str_tolower_copy(ZSTR_VAL(lcname), dep->name, name_len);
 
 				if (zend_hash_exists(&module_registry, lcname) || zend_get_extension(dep->name)) {
-					zend_string_free(lcname);
+					zend_string_free(lcname); /* 释放掉lcname */
 					/* TODO: Check version relationship */
+					/* 输出错误信息 */
 					zend_error(E_CORE_WARNING, "Cannot load module '%s' because conflicting module '%s' is already loaded", module->name, dep->name);
 					return NULL;
 				}

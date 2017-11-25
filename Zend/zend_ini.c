@@ -106,6 +106,7 @@ ZEND_API int zend_ini_startup(void) /* {{{ */
 {
 	registered_zend_ini_directives = (HashTable *) malloc(sizeof(HashTable));
 
+	/* php.ini 配置存储 */
 	EG(ini_directives) = registered_zend_ini_directives;
 	EG(modified_ini_directives) = NULL;
 	EG(error_reporting_ini_entry) = NULL;

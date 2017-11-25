@@ -397,6 +397,7 @@ static uint32_t compiler_options_default = ZEND_COMPILE_DEFAULT;
 # define compiler_options_default	ZEND_COMPILE_DEFAULT
 #endif
 
+/* 设置一些默认的编译时的值 */
 static void zend_set_default_compile_time_values(void) /* {{{ */
 {
 	/* default compile-time values */
@@ -620,6 +621,7 @@ static void module_destructor_zval(zval *zv) /* {{{ */
 }
 /* }}} */
 
+/*  */
 static zend_bool php_auto_globals_create_globals(zend_string *name) /* {{{ */
 {
 	zval globals;
@@ -711,13 +713,13 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	/* 版本号信息字符串长度，减一是因为结尾有个\n是不要的 */
 	zend_version_info_length = sizeof(ZEND_CORE_VERSION_INFO) - 1;
 
-	/* 全局函数表，哈希表实现，这里是为hashtables申请内存 */
+	/* 全局函数符号表 CG(function_table)，哈希表实现，这里是为hashtables申请内存 */
 	GLOBAL_FUNCTION_TABLE = (HashTable *) malloc(sizeof(HashTable));
-	/* 全局类表，同上 */
+	/* 全局类符号表 CG(class_table)，同上 */
 	GLOBAL_CLASS_TABLE = (HashTable *) malloc(sizeof(HashTable));
-	/* todo://我也不知道干嘛的  */
+	/* CG(auto_globals)  */
 	GLOBAL_AUTO_GLOBALS_TABLE = (HashTable *) malloc(sizeof(HashTable));
-	/* 全局常量表，同上 */
+	/* 全局常量符号表 EG(zend_constants)，同上 */
 	GLOBAL_CONSTANTS_TABLE = (HashTable *) malloc(sizeof(HashTable));
 
 	/* 初始化上面几个哈希表 */
@@ -756,11 +758,12 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	zend_get_windows_version_info(&EG(windows_version_info));
 #endif
 #endif
-	EG(error_reporting) = E_ALL & ~E_NOTICE;
+	EG(error_reporting) = E_ALL & ~E_NOTICE; /* 设置错误提示等级 */
 
 	zend_interned_strings_init();
-	zend_startup_builtin_functions();
-	zend_register_standard_constants();
+	zend_startup_builtin_functions(); /* 注册zend核心扩展 */
+	zend_register_standard_constants(); /* 注册预定义常量 */
+	/* 注册超全局变量$GLOBALS */
 	zend_register_auto_global(zend_string_init("GLOBALS", sizeof("GLOBALS") - 1, 1), 1, php_auto_globals_create_globals);
 
 #ifndef ZTS

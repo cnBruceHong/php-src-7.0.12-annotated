@@ -34,6 +34,7 @@ ZEND_API const char *zend_get_opcode_name(zend_uchar opcode);
 
 END_EXTERN_C()
 
+/* opcode指令表  */
 #define ZEND_NOP                               0
 #define ZEND_ADD                               1
 #define ZEND_SUB                               2

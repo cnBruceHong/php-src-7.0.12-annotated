@@ -170,6 +170,7 @@ static void zend_always_inline zend_hash_check_init(HashTable *ht, int packed)
 static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
 	{HT_INVALID_IDX, HT_INVALID_IDX};
 
+/* 真正的hashtables初始化函数 */
 ZEND_API void ZEND_FASTCALL _zend_hash_init(HashTable *ht, uint32_t nSize, dtor_func_t pDestructor, zend_bool persistent ZEND_FILE_LINE_DC)
 {
 	GC_REFCOUNT(ht) = 1;
@@ -242,6 +243,11 @@ ZEND_API void ZEND_FASTCALL zend_hash_to_packed(HashTable *ht)
 /* 哈希表初始化 */
 ZEND_API void ZEND_FASTCALL _zend_hash_init_ex(HashTable *ht, uint32_t nSize, dtor_func_t pDestructor, zend_bool persistent, zend_bool bApplyProtection ZEND_FILE_LINE_DC)
 {
+	/**
+	 *  传入要初始化的ht，规模size，析构函数，内存是否持久化。
+	 *  后面的ZEND_FILE_LINE_RELAY_CC是给debug用的，
+	 *  包括__zend_filename, __zend_lineno, 可以不用管
+	 * */
 	_zend_hash_init(ht, nSize, pDestructor, persistent ZEND_FILE_LINE_RELAY_CC);
 	if (!bApplyProtection) {
 		ht->u.flags &= ~HASH_FLAG_APPLY_PROTECTION;
@@ -550,6 +556,7 @@ static zend_always_inline Bucket *zend_hash_index_find_bucket(const HashTable *h
 	return NULL;
 }
 
+/* 内部函数，把key添加到ht中，如果存在，则更新 */
 static zend_always_inline zval *_zend_hash_add_or_update_i(HashTable *ht, zend_string *key, zval *pData, uint32_t flag ZEND_FILE_LINE_DC)
 {
 	zend_ulong h;
@@ -557,11 +564,12 @@ static zend_always_inline zval *_zend_hash_add_or_update_i(HashTable *ht, zend_s
 	uint32_t idx;
 	Bucket *p;
 
-	IS_CONSISTENT(ht);
-	HT_ASSERT(GC_REFCOUNT(ht) == 1);
+	IS_CONSISTENT(ht); /* zend debug 编译模式下用于输出ht调试信息 */
+	HT_ASSERT(GC_REFCOUNT(ht) == 1); /* zend debug 模式下使用assert函数做断言。推断校验哈希表引用计数为1 */
 
 	if (UNEXPECTED(!(ht->u.flags & HASH_FLAG_INITIALIZED))) {
-		CHECK_INIT(ht, 0);
+		/* 判断flags是否已经拥有 HASH_FLAG_INITIALIZED 标志 */
+		CHECK_INIT(ht, 0); /* zend_hash_check_init(ht, packed) */
 		goto add_to_hash;
 	} else if (ht->u.flags & HASH_FLAG_PACKED) {
 		zend_hash_packed_to_hash(ht);

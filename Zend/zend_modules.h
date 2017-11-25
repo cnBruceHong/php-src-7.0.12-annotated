@@ -70,13 +70,14 @@ struct _zend_ini_entry;
 typedef struct _zend_module_entry zend_module_entry;
 typedef struct _zend_module_dep zend_module_dep;
 
+/* zend模块 */
 struct _zend_module_entry {
 	unsigned short size;
 	unsigned int zend_api;
 	unsigned char zend_debug;
 	unsigned char zts;
 	const struct _zend_ini_entry *ini_entry;
-	const struct _zend_module_dep *deps;
+	const struct _zend_module_dep *deps; /* 模块的依赖项数组 */
 	const char *name;
 	const struct _zend_function_entry *functions;
 	int (*module_startup_func)(INIT_FUNC_ARGS);

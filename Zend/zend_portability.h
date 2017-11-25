@@ -31,8 +31,11 @@
 #define END_EXTERN_C()
 #endif
 
+/* 这个文件是处理zend跨平台的一些属性的 */
+
 /*
  * general definitions
+ * 通用定义区
  */
 
 #ifdef ZEND_WIN32
@@ -105,6 +108,7 @@
 # define ZEND_ASSUME(c)
 #endif
 
+/* 如果 */
 #if ZEND_DEBUG
 # define ZEND_ASSERT(c)	assert(c)
 #else

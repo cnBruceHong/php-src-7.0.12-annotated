@@ -380,6 +380,7 @@ zend_module_entry zend_builtin_module = { /* {{{ */
 };
 /* }}} */
 
+/* 注册zend核心扩展 */
 int zend_startup_builtin_functions(void) /* {{{ */
 {
 	zend_builtin_module.module_number = 0;

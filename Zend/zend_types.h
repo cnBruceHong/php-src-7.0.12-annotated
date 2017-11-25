@@ -224,8 +224,9 @@ struct _zend_array {
 #define HT_MIN_SIZE 8
 
 #if SIZEOF_SIZE_T == 4
-
-/* 用一个小的数去避免溢出检查 */
+/*  */
+/* 如果size_t是4字节，那么hashtables的最大规模不能超过0x04000000 */
+/* 0x04000000 => 0000 0100 0000 0000 0000 ...  */
 # define HT_MAX_SIZE 0x04000000 /* small enough to avoid overflow checks */
 
 # define HT_HASH_TO_BUCKET_EX(data, idx) \
@@ -234,7 +235,9 @@ struct _zend_array {
 	((idx) * sizeof(Bucket))
 # define HT_HASH_TO_IDX(idx) \
 	((idx) / sizeof(Bucket))
+/* 如果你是类Unix的话看到这里就可以了…… */
 #elif SIZEOF_SIZE_T == 8
+/* win 64位才会有size_t = 8 */
 # define HT_MAX_SIZE 0x80000000
 # define HT_HASH_TO_BUCKET_EX(data, idx) \
 	((data) + (idx))

@@ -1540,11 +1540,13 @@ zend_bool zend_is_auto_global(zend_string *name) /* {{{ */
 }
 /* }}} */
 
+/* 注册一个超全局变量 */
 int zend_register_auto_global(zend_string *name, zend_bool jit, zend_auto_global_callback auto_global_callback) /* {{{ */
 {
-	zend_auto_global auto_global;
+	zend_auto_global auto_global; /* 声明一个超全局变量结构体 */
 	int retval;
 
+	/* 将name参数转换为内部字符串 */
 	auto_global.name = zend_new_interned_string(name);
 	auto_global.auto_global_callback = auto_global_callback;
 	auto_global.jit = jit;
