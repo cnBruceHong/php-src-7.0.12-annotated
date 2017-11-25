@@ -77,7 +77,7 @@ ts_rsrc_id cwd_globals_id;
 virtual_cwd_globals cwd_globals;
 #endif
 
-cwd_state main_cwd_state; /* True global */
+cwd_state main_cwd_state; /* True global 定义了一个全局变量，用于存放程序运行路径信息，外部不可访问 */
 
 #ifndef ZEND_WIN32
 #include <unistd.h>
@@ -134,7 +134,7 @@ static int php_check_dots(const char *element, int n)
 #define IS_DIR_OK(state) (php_is_dir_ok(state) == 0)
 #endif
 
-
+/* 将路径信息拷贝 */
 #define CWD_STATE_COPY(d, s)				\
 	(d)->cwd_length = (s)->cwd_length;		\
 	(d)->cwd = (char *) emalloc((s)->cwd_length+1);	\
@@ -426,11 +426,12 @@ static int php_is_file_ok(const cwd_state *state)  /* {{{ */
 }
 /* }}} */
 
+/* 路径全局变量初始化函数 */
 static void cwd_globals_ctor(virtual_cwd_globals *cwd_g) /* {{{ */
 {
-	CWD_STATE_COPY(&cwd_g->cwd, &main_cwd_state);
-	cwd_g->realpath_cache_size = 0;
-	cwd_g->realpath_cache_size_limit = REALPATH_CACHE_SIZE;
+	CWD_STATE_COPY(&cwd_g->cwd, &main_cwd_state); 					/* 将内部变量拷贝到全局外部可访问变量上 */
+	cwd_g->realpath_cache_size = 0; 								/* 初始化值为0 */
+	cwd_g->realpath_cache_size_limit = REALPATH_CACHE_SIZE;			
 	cwd_g->realpath_cache_ttl = REALPATH_CACHE_TTL;
 	memset(cwd_g->realpath_cache, 0, sizeof(cwd_g->realpath_cache));
 }
@@ -444,7 +445,7 @@ static void cwd_globals_dtor(virtual_cwd_globals *cwd_g) /* {{{ */
 
 CWD_API void virtual_cwd_startup(void) /* {{{ */
 {
-	char cwd[MAXPATHLEN];
+	char cwd[MAXPATHLEN]; /* 定义一个存储程序运行绝对路径的数组 */
 	char *result;
 
 #ifdef NETWARE
@@ -462,19 +463,19 @@ CWD_API void virtual_cwd_startup(void) /* {{{ */
 #ifdef ZEND_WIN32
 	ZeroMemory(&cwd, sizeof(cwd));
 #endif
-	result = getcwd(cwd, sizeof(cwd));
+	result = getcwd(cwd, sizeof(cwd)); /* 获取程序运行的绝对路径 */
 #endif
 	if (!result) {
-		cwd[0] = '\0';
+		cwd[0] = '\0'; /* 获取路径失败，getcwd返回NULL，则将cwd数组置空 */
 	}
 
-	main_cwd_state.cwd_length = (int)strlen(cwd);
-#ifdef ZEND_WIN32
+	main_cwd_state.cwd_length = (int)strlen(cwd); /* 计算当前运行路径长度 */
+#ifdef ZEND_WIN3
 	if (main_cwd_state.cwd_length >= 2 && cwd[1] == ':') {
 		cwd[0] = toupper(cwd[0]);
 	}
 #endif
-	main_cwd_state.cwd = strdup(cwd);
+	main_cwd_state.cwd = strdup(cwd); /* 申请一块可以存放cwd的内存空间，返回指向它的指针，避免函数退出后cwd数组丢失 */
 
 #ifdef ZTS
 	ts_allocate_id(&cwd_globals_id, sizeof(virtual_cwd_globals), (ts_allocate_ctor) cwd_globals_ctor, (ts_allocate_dtor) cwd_globals_dtor);

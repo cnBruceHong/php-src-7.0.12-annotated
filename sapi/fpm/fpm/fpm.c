@@ -43,6 +43,7 @@ struct fpm_globals_s fpm_globals = {
 	.send_config_pipe = {0, 0},
 };
 
+/* fpm初始化函数 */
 int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int test_conf, int run_as_root, int force_daemon, int force_stderr) /* {{{ */
 {
 	fpm_globals.argc = argc;

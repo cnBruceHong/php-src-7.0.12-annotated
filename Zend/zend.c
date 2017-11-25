@@ -377,11 +377,14 @@ ZEND_API void zend_print_zval_r_ex(zend_write_func_t write_func, zval *expr, int
 }
 /* }}} */
 
+/* 默认的文件打开处理函数 */
 static FILE *zend_fopen_wrapper(const char *filename, zend_string **opened_path) /* {{{ */
 {
 	if (opened_path) {
 		*opened_path = zend_string_init(filename, strlen(filename), 0);
 	}
+
+	/* 返回文件打开句柄 */
 	return fopen(filename, "rb");
 }
 /* }}} */
@@ -629,6 +632,7 @@ static zend_bool php_auto_globals_create_globals(zend_string *name) /* {{{ */
 }
 /* }}} */
 
+/* zend引擎启动函数 */
 int zend_startup(zend_utility_functions *utility_functions, char **extensions) /* {{{ */
 {
 #ifdef ZTS
@@ -642,8 +646,10 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	extern zend_php_scanner_globals language_scanner_globals;
 #endif
 
+	/* 启动内存池 ZendMM */
 	start_memory_manager();
 
+	/* 可以使用shutdown函数去释放 */
 	virtual_cwd_startup(); /* Could use shutdown to free the main cwd but it would just slow it down for CGI */
 
 #if defined(__FreeBSD__) || defined(__DragonFly__)
@@ -651,18 +657,21 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	fpsetmask(0);
 #endif
 
-	zend_startup_strtod();
-	zend_startup_extensions_mechanism();
+	zend_startup_strtod(); /* 如果你是工作在TSRM下，这个函数处理锁申请 */
+	zend_startup_extensions_mechanism();	/* 初始化一个zend链表，用于存放extensions */
 
-	/* Set up utility functions and values */
-	zend_error_cb = utility_functions->error_function;
-	zend_printf = utility_functions->printf_function;
-	zend_write = (zend_write_func_t) utility_functions->write_function;
-	zend_fopen = utility_functions->fopen_function;
+	/* Set up utility functions and values，设置工具集函数和变量 */
+	zend_error_cb = utility_functions->error_function; 						/* 设置错误处理函数 */
+	zend_printf = utility_functions->printf_function;						/* 设置输出函数 */
+	zend_write = (zend_write_func_t) utility_functions->write_function; 	/* 设置写函数 */
+	zend_fopen = utility_functions->fopen_function;							/* 设置打开文件处理函数 */
+	
+	/* 如果没有指定打开文件处理函数，则使用zend_fopen_wrapper函数 */
 	if (!zend_fopen) {
-		zend_fopen = zend_fopen_wrapper;
+		zend_fopen = zend_fopen_wrapper; 
 	}
-	zend_stream_open_function = utility_functions->stream_open_function;
+
+	zend_stream_open_function = utility_functions->stream_open_function;	/* 流打开函数 */
 	zend_message_dispatcher_p = utility_functions->message_handler;
 #ifndef ZEND_SIGNALS
 	zend_block_interruptions = utility_functions->block_interruptions;
@@ -673,7 +682,7 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	zend_on_timeout = utility_functions->on_timeout;
 	zend_vspprintf = utility_functions->vspprintf_function;
 	zend_vstrpprintf = utility_functions->vstrpprintf_function;
-	zend_getenv = utility_functions->getenv_function;
+	zend_getenv = utility_functions->getenv_function; 						/* zend获取环境变量函数 */
 	zend_resolve_path = utility_functions->resolve_path_function;
 
 #if HAVE_DTRACE
@@ -682,7 +691,7 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	zend_execute_ex = dtrace_execute_ex;
 	zend_execute_internal = dtrace_execute_internal;
 #else
-	zend_compile_file = compile_file;
+	zend_compile_file = compile_file; 	/* 将编译文件数组赋值 */
 	zend_execute_ex = execute_ex;
 	zend_execute_internal = NULL;
 #endif /* HAVE_SYS_SDT_H */
@@ -690,19 +699,28 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	zend_throw_exception_hook = NULL;
 
 	/* Set up the default garbage collection implementation. */
+	/* 设置默认的垃圾回收机制 */
 	gc_collect_cycles = zend_gc_collect_cycles;
 
+	/* zend初始化opcodes对应的处理函数，一条opcodes对应一个处理函数 */
 	zend_init_opcodes_handlers();
 
 	/* set up version */
+	/* 设置zend引擎的版本号 */
 	zend_version_info = strdup(ZEND_CORE_VERSION_INFO);
+	/* 版本号信息字符串长度，减一是因为结尾有个\n是不要的 */
 	zend_version_info_length = sizeof(ZEND_CORE_VERSION_INFO) - 1;
 
+	/* 全局函数表，哈希表实现，这里是为hashtables申请内存 */
 	GLOBAL_FUNCTION_TABLE = (HashTable *) malloc(sizeof(HashTable));
+	/* 全局类表，同上 */
 	GLOBAL_CLASS_TABLE = (HashTable *) malloc(sizeof(HashTable));
+	/* todo://我也不知道干嘛的  */
 	GLOBAL_AUTO_GLOBALS_TABLE = (HashTable *) malloc(sizeof(HashTable));
+	/* 全局常量表，同上 */
 	GLOBAL_CONSTANTS_TABLE = (HashTable *) malloc(sizeof(HashTable));
 
+	/* 初始化上面几个哈希表 */
 	zend_hash_init_ex(GLOBAL_FUNCTION_TABLE, 1024, NULL, ZEND_FUNCTION_DTOR, 1, 0);
 	zend_hash_init_ex(GLOBAL_CLASS_TABLE, 64, NULL, ZEND_CLASS_DTOR, 1, 0);
 	zend_hash_init_ex(GLOBAL_AUTO_GLOBALS_TABLE, 8, NULL, auto_global_dtor, 1, 0);

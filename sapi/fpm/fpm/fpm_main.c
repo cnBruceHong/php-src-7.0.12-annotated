@@ -1567,6 +1567,7 @@ static zend_module_entry cgi_module_entry = {
 
 /* {{{ main
  */
+/* fpm的main函数 */
 int main(int argc, char *argv[])
 {
 	int exit_status = FPM_EXIT_OK;
@@ -1583,7 +1584,7 @@ int main(int argc, char *argv[])
 	void ***tsrm_ls;
 #endif
 
-	int max_requests = 500;
+	int max_requests = 500; /* 最大处理请求数为500 */
 	int requests = 0;
 	int fcgi_fd = 0;
 	fcgi_request *request;

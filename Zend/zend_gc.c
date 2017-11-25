@@ -131,6 +131,7 @@ static void root_buffer_dtor(zend_gc_globals *gc_globals)
 	}
 }
 
+/* 初始化gc垃圾回收器 */
 static void gc_globals_ctor_ex(zend_gc_globals *gc_globals)
 {
 	gc_globals->gc_enabled = 0;
@@ -138,6 +139,7 @@ static void gc_globals_ctor_ex(zend_gc_globals *gc_globals)
 
 	gc_globals->buf = NULL;
 
+	/* gc回收器的roots自己指向自己 */
 	gc_globals->roots.next = &gc_globals->roots;
 	gc_globals->roots.prev = &gc_globals->roots;
 	gc_globals->unused = NULL;
@@ -159,6 +161,7 @@ static void gc_globals_ctor_ex(zend_gc_globals *gc_globals)
 #endif
 }
 
+/*  */
 ZEND_API void gc_globals_ctor(void)
 {
 #ifdef ZTS

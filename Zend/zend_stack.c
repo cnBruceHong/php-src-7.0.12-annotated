@@ -53,8 +53,8 @@ ZEND_API int zend_stack_push(zend_stack *stack, const void *element)
 ZEND_API void *zend_stack_top(const zend_stack *stack)
 {
 	if (stack->top > 0) {
-		/* 判断堆栈计数器，大于0代表有数据注意 */
-		/* 堆栈计数器是从1开始计数，需要 stack->top - 1 */
+		/* 判断堆栈计数器，大于0代表有数据 */
+		/* 注意，堆栈计数器是从1开始计数，需要 stack->top - 1 */
 		return ZEND_STACK_ELEMENT(stack, stack->top - 1);
 	} else {
 		/* 堆栈为空什么都不做 */

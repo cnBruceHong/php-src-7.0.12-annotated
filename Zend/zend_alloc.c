@@ -124,7 +124,7 @@ static size_t _real_page_size = ZEND_MM_PAGE_SIZE;
 # define ZEND_MM_LIMIT 1   /* support for user-defined memory limit          */
 #endif
 #ifndef ZEND_MM_CUSTOM
-# define ZEND_MM_CUSTOM 1  /* support for custom memory allocator            */
+# define ZEND_MM_CUSTOM 1  /* support for custom memory allocator 支持自定义的内存申请器 */
                            /* USE_ZEND_ALLOC=0 may switch to system malloc() */
 #endif
 #ifndef ZEND_MM_STORAGE
@@ -244,8 +244,8 @@ struct _zend_mm_heap {
 	zend_mm_storage   *storage;
 #endif
 #if ZEND_MM_STAT
-	size_t             size;                    /* current memory usage */
-	size_t             peak;                    /* peak memory usage */
+	size_t             size;                    /* current memory usage，当前内存使用量 */
+	size_t             peak;                    /* peak memory usage，内存单次申请的峰值 */
 #endif
 	zend_mm_free_slot *free_slot[ZEND_MM_BINS]; /* free lists for small sizes */
 #if ZEND_MM_STAT || ZEND_MM_LIMIT
@@ -283,11 +283,12 @@ struct _zend_mm_heap {
 #endif
 };
 
+/* 内存chunk粒度的结构 */
 struct _zend_mm_chunk {
 	zend_mm_heap      *heap;
 	zend_mm_chunk     *next;
 	zend_mm_chunk     *prev;
-	int                free_pages;				/* number of free pages */
+	int                free_pages;				/* number of free pages，还有多少没有使用的pages */
 	int                free_tail;               /* number of free pages at the end of chunk */
 	int                num;
 	char               reserve[64 - (sizeof(void*) * 3 + sizeof(int) * 3)];
@@ -2627,7 +2628,7 @@ ZEND_API void shutdown_memory_manager(int silent, int full_shutdown)
 static void alloc_globals_ctor(zend_alloc_globals *alloc_globals)
 {
 #if ZEND_MM_CUSTOM
-	char *tmp = getenv("USE_ZEND_ALLOC");
+	char *tmp = getenv("USE_ZEND_ALLOC"); /* 获取环境变量，如果USE_ZEND_ALLOC=0，使用系统的内存申请函数malloc */
 
 	if (tmp && !zend_atoi(tmp, 0)) {
 		alloc_globals->mm_heap = malloc(sizeof(zend_mm_heap));
@@ -2656,6 +2657,7 @@ static void alloc_globals_dtor(zend_alloc_globals *alloc_globals)
 }
 #endif
 
+/* 启动内存管理 */
 ZEND_API void start_memory_manager(void)
 {
 #ifdef ZTS

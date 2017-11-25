@@ -67,6 +67,7 @@ typedef struct _gc_root_buffer {
 	uint32_t                 refcount;
 } gc_root_buffer;
 
+/* zend垃圾回收器 */
 typedef struct _zend_gc_globals {
 	zend_bool         gc_enabled;
 	zend_bool         gc_active;

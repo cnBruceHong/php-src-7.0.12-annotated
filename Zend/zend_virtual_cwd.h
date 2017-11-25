@@ -142,9 +142,10 @@ CWD_API int php_sys_readlink(const char *link, char *target, size_t target_len);
 # endif
 #endif
 
+/* 程序运行路径信息结构体 */
 typedef struct _cwd_state {
-	char *cwd;
-	int cwd_length;
+	char *cwd;          /* 运行路径 */
+	int cwd_length;     /* 运行路径的长度 */
 } cwd_state;
 
 typedef int (*verify_path_func)(const cwd_state *);
@@ -227,6 +228,7 @@ typedef struct _realpath_cache_bucket {
 #endif
 } realpath_cache_bucket;
 
+/*  */
 typedef struct _virtual_cwd_globals {
 	cwd_state cwd;
 	zend_long                   realpath_cache_size;

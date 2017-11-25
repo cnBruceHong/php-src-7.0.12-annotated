@@ -228,7 +228,7 @@ struct _fcgi_request {
 	unsigned char  out_buf[1024*8];	/* 输出缓冲区 */
 	unsigned char  reserved[sizeof(fcgi_end_request_rec)];
 
-	fcgi_req_hook  hook;
+	fcgi_req_hook  hook; /* 保存请求的accept函数、 */
 
 	int            has_env;
 	fcgi_hash      env;

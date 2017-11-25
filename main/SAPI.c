@@ -48,7 +48,7 @@
 #ifdef ZTS
 SAPI_API int sapi_globals_id;
 #else
-sapi_globals_struct sapi_globals;
+sapi_globals_struct sapi_globals; /* 申明全局的一个SAPI变量 */
 #endif
 
 static void _type_dtor(zval *zv)
@@ -74,7 +74,7 @@ static void sapi_globals_dtor(sapi_globals_struct *sapi_globals)
 /* True globals (no need for thread safety) */
 SAPI_API sapi_module_struct sapi_module;
 
-
+/* SAPI启动函数，传入一个指定的SAPI结构 */
 SAPI_API void sapi_startup(sapi_module_struct *sf)
 {
 	sf->ini_entries = NULL;

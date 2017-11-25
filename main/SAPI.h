@@ -145,11 +145,10 @@ BEGIN_EXTERN_C()
 SAPI_API extern int sapi_globals_id;
 #else
 # define SG(v) (sapi_globals.v)
-extern SAPI_API sapi_globals_struct sapi_globals;
+extern SAPI_API sapi_globals_struct sapi_globals; /* 申明了全局变量 */
 #endif
 
-SAPI_API void sapi_startup(sapi_module_struct *sf);
-SAPI_API void sapi_shutdown(void);
+SAPI_API void sapi_startup(sapi_module_struct *sf); SAPI_API void sapi_shutdown(void);
 SAPI_API void sapi_activate(void);
 SAPI_API void sapi_deactivate(void);
 SAPI_API void sapi_initialize_empty_request(void);
@@ -218,7 +217,10 @@ SAPI_API double sapi_get_request_time(void);
 SAPI_API void sapi_terminate_process(void);
 END_EXTERN_C()
 
-/* SAPI模块结构 */
+/**
+ * SAPI模块结构 
+ * 如果你要自己写一个SAPI程序的话，你必须实现它，并在sapi_startup的时候传入
+ */
 struct _sapi_module_struct {
 	char *name; /* 模块名称 */
 	char *pretty_name; /* 人类可读的模块名称 */
@@ -293,9 +295,9 @@ struct _sapi_post_entry {
 #define SAPI_HEADER_DO_SEND				2
 #define SAPI_HEADER_SEND_FAILED			3
 
-#define SAPI_DEFAULT_MIMETYPE		"text/html"
-#define SAPI_DEFAULT_CHARSET		PHP_DEFAULT_CHARSET
-#define SAPI_PHP_VERSION_HEADER		"X-Powered-By: PHP/" PHP_VERSION
+#define SAPI_DEFAULT_MIMETYPE		"text/html" /* 默认的MIME类型 */
+#define SAPI_DEFAULT_CHARSET		PHP_DEFAULT_CHARSET /* 默认的字符集：UTF-8 */
+#define SAPI_PHP_VERSION_HEADER		"X-Powered-By: PHP/" PHP_VERSION /* 输入服务程序架构信息 */
 
 #define SAPI_POST_READER_FUNC(post_reader) void post_reader(void)
 #define SAPI_POST_HANDLER_FUNC(post_handler) void post_handler(char *content_type_dup, void *arg)

@@ -80,34 +80,41 @@ static const unsigned char tolower_map[256] = {
 		zend_binary_strncasecmp
  */
 
+/* 将string转为int */
 ZEND_API int ZEND_FASTCALL zend_atoi(const char *str, int str_len) /* {{{ */
 {
 	int retval;
 
 	if (!str_len) {
+		/* 如果传入的参数为0，则使用传入的str的字符串长度 */
 		str_len = (int)strlen(str);
 	}
-	retval = ZEND_STRTOL(str, NULL, 0);
+	retval = ZEND_STRTOL(str, NULL, 0); /* 将str转为long */
 	if (str_len>0) {
 		switch (str[str_len-1]) {
+			/* 进制转换，取最后一个字符，进行进制转换 */
 			case 'g':
 			case 'G':
 				retval *= 1024;
 				/* break intentionally missing */
+				/* 没有break，继续执行下去 */
 			case 'm':
 			case 'M':
 				retval *= 1024;
 				/* break intentionally missing */
+				/* 没有break，继续执行下去 */
 			case 'k':
 			case 'K':
 				retval *= 1024;
 				break;
 		}
 	}
+	/* 返回转换后的数值 */
 	return retval;
 }
 /* }}} */
 
+/* 将string转为long，可以参考上面那个函数 */
 ZEND_API zend_long ZEND_FASTCALL zend_atol(const char *str, int str_len) /* {{{ */
 {
 	zend_long retval;
@@ -279,14 +286,17 @@ try_again:
 		}																\
 	} while (0);
 
+/* 将一个zval的值转为long */
 ZEND_API void ZEND_FASTCALL convert_to_long(zval *op) /* {{{ */
 {
 	if (Z_TYPE_P(op) != IS_LONG) {
+		/* 如果op的类型不是long,调用转换函数 */
 		convert_to_long_base(op, 10);
 	}
 }
 /* }}} */
 
+/* 将op转为long */
 ZEND_API void ZEND_FASTCALL convert_to_long_base(zval *op, int base) /* {{{ */
 {
 	zend_long tmp;
@@ -306,6 +316,7 @@ try_again:
 			ZVAL_LONG(op, tmp);
 			break;
 		case IS_LONG:
+			/* 本身就是long，不需要转换 */
 			break;
 		case IS_DOUBLE:
 			ZVAL_LONG(op, zend_dval_to_lval(Z_DVAL_P(op)));

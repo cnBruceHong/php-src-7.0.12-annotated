@@ -1757,6 +1757,7 @@ void php_request_shutdown_for_hook(void *dummy)
 
 /* {{{ php_request_shutdown
  */
+/* php请求结束处理函数 */
 void php_request_shutdown(void *dummy)
 {
 	zend_bool report_memleaks;
@@ -2053,13 +2054,14 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	/* 启动SAPI */
 	sapi_activate();
 
-	/* 模块已经被初始化完成，直接返回 */
+	/* 如果模块已经被初始化完成，直接返回 */
 	if (module_initialized) {
 		return SUCCESS;
 	}
 
 	sapi_module = *sf;
 
+	/* 启动PHP输出 */
 	php_output_startup();
 
 #ifdef ZTS
@@ -2071,11 +2073,13 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 #else
 	php_startup_ticks();
 #endif
+	/* 启动并初始化GC垃圾回收器 */
 	gc_globals_ctor();
 
-	zuf.error_function = php_error_cb;
-	zuf.printf_function = php_printf;
-	zuf.write_function = php_output_wrapper;
+	/* 初始化zend函数工具集 */
+	zuf.error_function = php_error_cb; 											/* zend异常处理函数 */
+	zuf.printf_function = php_printf;											/* zend打印函数 */
+	zuf.write_function = php_output_wrapper;									/*  */
 	zuf.fopen_function = php_fopen_wrapper_for_zend;
 	zuf.message_handler = php_message_handler_for_zend;
 	zuf.block_interruptions = sapi_module.block_interruptions;
@@ -2088,10 +2092,11 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	zuf.vstrpprintf_function = vstrpprintf;
 	zuf.getenv_function = sapi_getenv;
 	zuf.resolve_path_function = php_resolve_path_for_zend;
+	/* 启动zend引擎 */
 	zend_startup(&zuf, NULL);
 
 #if HAVE_SETLOCALE
-	setlocale(LC_CTYPE, "");
+	setlocale(LC_CTYPE, ""); /* 设置地区信息，主要针对一些显示格式等等的配置 */
 	zend_update_current_locale();
 #endif
 
