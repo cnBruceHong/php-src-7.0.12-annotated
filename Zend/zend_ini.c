@@ -26,6 +26,7 @@
 #include "zend_operators.h"
 #include "zend_strtod.h"
 
+/* 存放php.ini配置的哈希表 */
 static HashTable *registered_zend_ini_directives;
 
 #define NO_VALUE_PLAINTEXT		"no value"
@@ -104,6 +105,7 @@ static void free_ini_entry(zval *zv) /* {{{ */
  */
 ZEND_API int zend_ini_startup(void) /* {{{ */
 {
+	/* 申请一个哈希表用于存放配置 */
 	registered_zend_ini_directives = (HashTable *) malloc(sizeof(HashTable));
 
 	/* php.ini 配置存储 */

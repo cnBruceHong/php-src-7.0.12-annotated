@@ -230,6 +230,7 @@ static void php_disable_classes(void)
 
 /* {{{ php_binary_init
  */
+/* 获取php的二进制可执行文件的路径，存放到core_globals.php_binary中 */
 static void php_binary_init(void)
 {
 	char *binary_location;
@@ -240,19 +241,23 @@ static void php_binary_init(void)
 		PG(php_binary) = NULL;
 	}
 #else
+	/* 如果设置了程序执行路径 */
 	if (sapi_module.executable_location) {
+		/* 申请内存存放路径字符串，最大个数受操作系统限制 */
 		binary_location = (char *)malloc(MAXPATHLEN);
+		/* 查找有没有/这个符号的 */
 		if (!strchr(sapi_module.executable_location, '/')) {
 			char *envpath, *path;
 			int found = 0;
-
+			/* 尝试从环境变量中获取PATH */
 			if ((envpath = getenv("PATH")) != NULL) {
+				/* 找到！ */
 				char *search_dir, search_path[MAXPATHLEN];
 				char *last = NULL;
 				zend_stat_t s;
 
-				path = estrdup(envpath);
-				search_dir = php_strtok_r(path, ":", &last);
+				path = estrdup(envpath); /* 复制envpath给path变量，内存独立 */
+				search_dir = php_strtok_r(path, ":", &last); /* 这里什么都没做，返回了NULL */
 
 				while (search_dir) {
 					snprintf(search_path, MAXPATHLEN, "%s/%s", search_dir, sapi_module.executable_location);
@@ -2175,9 +2180,10 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	REGISTER_MAIN_LONG_CONSTANT("PHP_WINDOWS_NT_SERVER", VER_NT_SERVER, CONST_PERSISTENT | CONST_CS);
 	REGISTER_MAIN_LONG_CONSTANT("PHP_WINDOWS_NT_WORKSTATION", VER_NT_WORKSTATION, CONST_PERSISTENT | CONST_CS);
 #endif
-
+	/* 获取php的二进制可执行文件的路径，存放到core_globals.php_binary中 */
 	php_binary_init();
 	if (PG(php_binary)) {
+		/* 如果php_binary获取得到，则定义PHP_BINARY这个预定义 */
 		REGISTER_MAIN_STRINGL_CONSTANT("PHP_BINARY", PG(php_binary), strlen(PG(php_binary)), CONST_PERSISTENT | CONST_CS);
 	} else {
 		REGISTER_MAIN_STRINGL_CONSTANT("PHP_BINARY", "", 0, CONST_PERSISTENT | CONST_CS);
@@ -2189,6 +2195,7 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	/* this will read in php.ini, set up the configuration parameters,
 	   load zend extensions and register php function extensions
 	   to be loaded later */
+	/* 载入php.ini文件，设置配置参数，载入zend扩展，注册PHP函数扩展 */
 	if (php_init_config() == FAILURE) {
 		return FAILURE;
 	}
@@ -2221,12 +2228,14 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	php_startup_sapi_content_types();
 
 	/* startup extensions statically compiled in */
+	/* 注册静态编译的扩展 */
 	if (php_register_internal_extensions_func() == FAILURE) {
 		php_printf("Unable to start builtin modules\n");
 		return FAILURE;
 	}
 
 	/* start additional PHP extensions */
+	/*  */
 	php_register_extensions_bc(additional_modules, num_additional_modules);
 
 	/* load and startup extensions compiled as shared objects (aka DLLs)
@@ -2236,6 +2245,7 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	   which is always an internal extension and to be initialized
 	   ahead of all other internals
 	 */
+	/* 根据php.ini注册动态扩展 */
 	php_ini_register_extensions();
 	zend_startup_modules();
 
@@ -2254,6 +2264,7 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	}
 
 	/* disable certain classes and functions as requested by php.ini */
+	/* 注册ini文件中禁用的类和方法 */
 	php_disable_functions();
 	php_disable_classes();
 

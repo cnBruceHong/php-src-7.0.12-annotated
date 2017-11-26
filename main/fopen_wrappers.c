@@ -623,6 +623,7 @@ PHPAPI zend_string *php_resolve_path(const char *filename, int filename_length, 
  * Tries to open a file with a PATH-style list of directories.
  * If the filename starts with "." or "/", the path is ignored.
  */
+/* 尝试从一个类似PATH这样的路径变量中一个一个得打开文件 */
 PHPAPI FILE *php_fopen_with_path(const char *filename, const char *mode, const char *path, zend_string **opened_path)
 {
 	char *pathbuf, *ptr, *end;
@@ -644,16 +645,18 @@ PHPAPI FILE *php_fopen_with_path(const char *filename, const char *mode, const c
 	(void) filename_length;
 #endif
 
-	/* Relative path open */
+	/* Relative path open */ /* 相对路径 */
 	if ((*filename == '.')
-	/* Absolute path open */
+	/* Absolute path open */ /* 绝对路径 */
 	 || IS_ABSOLUTE_PATH(filename, filename_length)
 	 || (!path || !*path)
 	) {
+		/* 如果filename是相对路径或者是绝对路径，会被忽略 */
 		return php_fopen_and_set_opened_path(filename, mode, opened_path);
 	}
 
-	/* check in provided path */
+	/* check in provided path */ 
+	/* 检查path */
 	/* append the calling scripts' current working directory
 	 * as a fall back case
 	 */
@@ -679,25 +682,29 @@ PHPAPI FILE *php_fopen_with_path(const char *filename, const char *mode, const c
 		pathbuf = estrdup(path);
 	}
 
-	ptr = pathbuf;
+	ptr = pathbuf; /* pathbuf中有很多由：分割的路径，ptr指针是用来遍历这些路径的 */
 
 	while (ptr && *ptr) {
-		end = strchr(ptr, DEFAULT_DIR_SEPARATOR);
+		end = strchr(ptr, DEFAULT_DIR_SEPARATOR); /* 用：切分, end指向后面的字符串开头: */
 		if (end != NULL) {
-			*end = '\0';
+			*end = '\0'; /* 如果:后面还有，把:用\0替换，指针指向下一位 */
 			end++;
 		}
 		if (snprintf(trypath, MAXPATHLEN, "%s/%s", ptr, filename) >= MAXPATHLEN) {
-			php_error_docref(NULL, E_NOTICE, "%s/%s path was truncated to %d", ptr, filename, MAXPATHLEN);
+			/* 路径超过最大，报path被截断错误 */
+			php_error_docref(NULL, E_NOTICE, "%s/%s path was truncated to %d", ptr, filename, MAXPATHLEN); 
 		}
+		/* 尝试打开trypath的路径文件 */
 		fp = php_fopen_and_set_opened_path(trypath, mode, opened_path);
 		if (fp) {
+			/* 如果获取到了，直接释放pathbuf内存然后返回 */
 			efree(pathbuf);
 			return fp;
 		}
-		ptr = end;
+		ptr = end; /* ptr指针指向下部分，继续尝试 */
 	} /* end provided path */
 
+	/* 仍然找不到，放弃，返回NULL */
 	efree(pathbuf);
 	return NULL;
 }
@@ -775,6 +782,7 @@ PHPAPI char *expand_filepath_with_mode(const char *filepath, char *real_path, co
 	path_len = (int)strlen(filepath);
 
 	if (IS_ABSOLUTE_PATH(filepath, path_len)) {
+		/* 如果filepath是一个绝对路径 */
 		cwd[0] = '\0';
 	} else {
 		const char *iam = SG(request_info).path_translated;
@@ -829,6 +837,7 @@ PHPAPI char *expand_filepath_with_mode(const char *filepath, char *real_path, co
 	} else {
 		real_path = estrndup(new_state.cwd, new_state.cwd_length);
 	}
+	/* 释放cwd */
 	efree(new_state.cwd);
 
 	return real_path;

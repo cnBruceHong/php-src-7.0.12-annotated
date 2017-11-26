@@ -55,6 +55,7 @@ static int php_opt_error(int argc, char * const *argv, int oint, int optchr, int
 
 PHPAPI int php_optidx = -1;
 
+/* 提取格式化php二进制可执行文件输出参数 */
 PHPAPI int php_getopt(int argc, char* const *argv, const opt_struct opts[], char **optarg, int *optind, int show_err, int arg_start) /* {{{ */
 {
 	static int optchr = 0;
@@ -87,6 +88,7 @@ PHPAPI int php_getopt(int argc, char* const *argv, const opt_struct opts[], char
 			}
 		}
 	}
+	/* --的参数 */
 	if ((argv[*optind][0] == '-') && (argv[*optind][1] == '-')) {
 		const char *pos;
 		int arg_end = (int)strlen(argv[*optind])-1;

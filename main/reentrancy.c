@@ -376,6 +376,7 @@ php_rand_r(unsigned int *ctx)
 
 #include <stddef.h>
 
+/* php自己封装切分字符串 */
 PHPAPI char *
 php_strtok_r(char *s, const char *delim, char **last)
 {
@@ -383,6 +384,7 @@ php_strtok_r(char *s, const char *delim, char **last)
     int c, sc;
     char *tok;
 
+	/* 如果字符串是空，或者传入的last是NULL，直接返回 */
     if (s == NULL && (s = *last) == NULL)
     {
 	return NULL;
@@ -392,13 +394,16 @@ php_strtok_r(char *s, const char *delim, char **last)
      * Skip (span) leading delimiters (s += strspn(s, delim), sort of).
      */
 cont:
+	/*  */
     c = *s++;
     for (spanp = (char *)delim; (sc = *spanp++) != 0; )
     {
 	if (c == sc)
 	{
+		/* 当前遍历到的字符与delim相等，s推向下一个字符 */
 	    goto cont;
 	}
+	/* 当前字符不相等，比较delim的下一位 */
     }
 
     if (c == 0)		/* no non-delimiter characters */

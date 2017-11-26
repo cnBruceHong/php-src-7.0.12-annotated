@@ -66,7 +66,7 @@ END_EXTERN_C()
 typedef struct _zend_vm_stack *zend_vm_stack;
 typedef struct _zend_ini_entry zend_ini_entry;
 
-
+/* zend编译器全局常量 */
 struct _zend_compiler_globals {
 	zend_stack loop_var_stack;
 
@@ -133,7 +133,7 @@ struct _zend_compiler_globals {
 #endif
 };
 
-
+/* zend执行器全局变量 */
 struct _zend_executor_globals {
 	zval uninitialized_zval;
 	zval error_zval;

@@ -282,6 +282,7 @@ static zend_always_inline void zend_string_free(zend_string *s)
 static zend_always_inline void zend_string_release(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {
+		/* 如果不是内部字符串，如果自减一后没有任何引用，直接调用pefree释放 */
 		if (--GC_REFCOUNT(s) == 0) {
 			pefree(s, GC_FLAGS(s) & IS_STR_PERSISTENT);
 		}

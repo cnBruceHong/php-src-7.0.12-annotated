@@ -77,6 +77,7 @@ static void safe_php_register_variable(char *var, char *strval, size_t val_len, 
 #define UPLOAD_ERROR_F    7  /* Failed to write file to disk 文件写入磁盘失败 */
 #define UPLOAD_ERROR_X    8  /* File upload stopped by extension 文件上传异常终止 */
 
+/* 定义文件上传相关的预定义常量 */
 void php_rfc1867_register_constants(void) /* {{{ */
 {
 	REGISTER_MAIN_LONG_CONSTANT("UPLOAD_ERR_OK",         UPLOAD_ERROR_OK, CONST_CS | CONST_PERSISTENT);

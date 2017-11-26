@@ -772,6 +772,7 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	zend_init_call_trampoline_op();
 #endif
 
+	/* 初始化用于存放php.ini配置的空间 */
 	zend_ini_startup();
 
 #ifdef ZTS

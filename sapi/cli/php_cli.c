@@ -434,6 +434,7 @@ static int php_cli_startup(sapi_module_struct *sapi_module) /* {{{ */
 	ZVAL_NEW_STR(&tmp, zend_string_init(value, sizeof(value)-1, 1));\
 	zend_hash_str_update(configuration_hash, name, sizeof(name)-1, &tmp);\
 
+/* cli模式设置一些默认的ini参数 */
 static void sapi_cli_ini_defaults(HashTable *configuration_hash)
 {
 	zval tmp;
@@ -646,6 +647,7 @@ static int cli_seek_file_begin(zend_file_handle *file_handle, char *script_file,
 }
 /* }}} */
 
+/* 处理cli请求 */
 static int do_cli(int argc, char **argv) /* {{{ */
 {
 	int c;
@@ -1233,6 +1235,7 @@ int main(int argc, char *argv[])
 	setmode(_fileno(stderr), O_BINARY);		/* make the stdio mode be binary */
 #endif
 
+	/* 解析输出的参数 */
 	while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2))!=-1) {
 		switch (c) {
 			case 'c':
@@ -1283,12 +1286,14 @@ int main(int argc, char *argv[])
 #endif
 			case 'h': /* help & quit */
 			case '?':
+				/* 输出帮助信息 */
 				php_cli_usage(argv[0]);
 				goto out;
 			case 'i': case 'v': case 'm':
 				sapi_module = &cli_sapi_module;
 				goto exit_loop;
 			case 'e': /* enable extended info output */
+				/* 开启扩展信息输出 */
 				use_extended_info = 1;
 				break;
 		}

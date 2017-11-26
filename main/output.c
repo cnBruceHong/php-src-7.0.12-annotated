@@ -200,6 +200,7 @@ PHPAPI void php_output_deactivate(void)
 /* }}} */
 
 /* {{{ void php_output_register_constants() */
+/* 定义一些输出相关的预定义常量 */
 PHPAPI void php_output_register_constants(void)
 {
 	REGISTER_MAIN_LONG_CONSTANT("PHP_OUTPUT_HANDLER_START", PHP_OUTPUT_HANDLER_START, CONST_CS | CONST_PERSISTENT);

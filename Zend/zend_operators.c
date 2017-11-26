@@ -361,17 +361,21 @@ try_again:
 }
 /* }}} */
 
+/* 传入一个zval，转成浮点型 */
 ZEND_API void ZEND_FASTCALL convert_to_double(zval *op) /* {{{ */
 {
 	double tmp;
 
 try_again:
+	/* 获取op的类型 */
 	switch (Z_TYPE_P(op)) {
 		case IS_NULL:
 		case IS_FALSE:
+			/* 如果是空或者是布尔假，转为0.0 */
 			ZVAL_DOUBLE(op, 0.0);
 			break;
 		case IS_TRUE:
+			/* 如果是布尔真，转为1.0 */
 			ZVAL_DOUBLE(op, 1.0);
 			break;
 		case IS_RESOURCE: {
@@ -381,15 +385,19 @@ try_again:
 			}
 			break;
 		case IS_LONG:
+			/* 如果是long，可以安全的强制转换 */
 			ZVAL_DOUBLE(op, (double) Z_LVAL_P(op));
 			break;
 		case IS_DOUBLE:
+			/* 什么都不用做 */
 			break;
 		case IS_STRING:
 			{
+				/* 取出op代表的字符串 */
 				zend_string *str = Z_STR_P(op);
-
+				/* 调用的是标准C库的strtod */	
 				ZVAL_DOUBLE(op, zend_strtod(ZSTR_VAL(str), NULL));
+				/* 释放掉原来的str对象 */
 				zend_string_release(str);
 			}
 			break;

@@ -51,7 +51,7 @@
 #define TRANSLATE_SLASHES_LOWER(path)
 #endif
 
-
+/* 扩展列表 */
 typedef struct _php_extension_lists {
 	zend_llist engine;
 	zend_llist functions;
@@ -60,7 +60,7 @@ typedef struct _php_extension_lists {
 /* True globals */
 static int is_special_section = 0;
 static HashTable *active_ini_hash;
-static HashTable configuration_hash;
+static HashTable configuration_hash; /* 模块内存放ini配置 */
 static int has_per_dir_config = 0;
 static int has_per_host_config = 0;
 PHPAPI char *php_ini_opened_path=NULL;
@@ -190,6 +190,7 @@ PHPAPI void display_ini_entries(zend_module_entry *module)
 
 /* {{{ config_zval_dtor
  */
+/* 用于释放存放在ht中的配置项 */
 PHPAPI void config_zval_dtor(zval *zvalue)
 {
 	if (Z_TYPE_P(zvalue) == IS_ARRAY) {
@@ -377,6 +378,7 @@ static void php_load_zend_extension_cb(void *arg)
 
 /* {{{ php_init_config
  */
+/* php.ini配置 */
 int php_init_config(void)
 {
 	char *php_ini_file_name = NULL;
@@ -387,15 +389,20 @@ int php_init_config(void)
 	zend_file_handle fh;
 	zend_string *opened_path = NULL;
 
+	/* 初始化php_ini.c这个模块内用来暂时存放配置的HT变量 */
 	zend_hash_init(&configuration_hash, 8, NULL, config_zval_dtor, 1);
 
 	if (sapi_module.ini_defaults) {
+		/* 如果当前的SAPI需要设置一些默认的ini参数，在这里设置 */
+		/* cli中会使用 sapi_cli_ini_defaults 这个函数 */
 		sapi_module.ini_defaults(&configuration_hash);
 	}
 
+	/* 初始化extension_lists */
 	zend_llist_init(&extension_lists.engine, sizeof(char *), (llist_dtor_func_t) free_estring, 1);
 	zend_llist_init(&extension_lists.functions, sizeof(char *), (llist_dtor_func_t) free_estring, 1);
 
+	/* 从core_globals.open_basedir中获取值 */
 	open_basedir = PG(open_basedir);
 
 	if (sapi_module.php_ini_path_override) {
@@ -412,6 +419,7 @@ int php_init_config(void)
 		char phprc_path[MAXPATHLEN];
 #endif
 
+		/* 从环境变量中看看有没有设置 PHPRC */
 		env_location = getenv("PHPRC");
 
 #ifdef PHP_WIN32
@@ -443,19 +451,21 @@ int php_init_config(void)
 		}
 #else
 		if (!env_location) {
+			/* 没有PHPRC，不处理 */
 			env_location = "";
 		}
 #endif
 		/*
 		 * Prepare search path
 		 */
-
+		/* 准备搜索路径 */
 		search_path_size = MAXPATHLEN * 4 + (int)strlen(env_location) + 3 + 1;
 		php_ini_search_path = (char *) emalloc(search_path_size);
-		free_ini_search_path = 1;
+		free_ini_search_path = 1; /* 标记需要释放路径 */
 		php_ini_search_path[0] = 0;
 
 		/* Add environment location */
+		/* 添加环境变量中的路径 */
 		if (env_location[0]) {
 			if (*php_ini_search_path) {
 				strlcat(php_ini_search_path, paths_separator, search_path_size);
@@ -484,6 +494,7 @@ int php_init_config(void)
 			strlcat(php_ini_search_path, ".", search_path_size);
 		}
 
+		/* 把二进制执行文件所在的路径也加入搜索路径 */
 		if (PG(php_binary)) {
 			char *separator_location, *binary_location;
 
@@ -523,9 +534,9 @@ int php_init_config(void)
 		efree(default_location);
 
 #else
-		default_location = PHP_CONFIG_FILE_PATH;
+		default_location = PHP_CONFIG_FILE_PATH; /* 添加默认的php配置文件路径/usr/local/lib */
 		if (*php_ini_search_path) {
-			strlcat(php_ini_search_path, paths_separator, search_path_size);
+			strlcat(php_ini_search_path, paths_separator, search_path_size); /* 尾部追加一个: */
 		}
 		strlcat(php_ini_search_path, default_location, search_path_size);
 #endif
@@ -536,20 +547,29 @@ int php_init_config(void)
 	/*
 	 * Find and open actual ini file
 	 */
-
+	/* 初始化句柄的内存空间 */
 	memset(&fh, 0, sizeof(fh));
 
 	/* If SAPI does not want to ignore all ini files OR an overriding file/path is given.
 	 * This allows disabling scanning for ini files in the PHP_CONFIG_FILE_SCAN_DIR but still
 	 * load an optional ini file. */
+	/*
+	 * 如果SAPI不想忽略所有的php ini配置文件，或者给出了复写的配置文件和路径，
+	 * 这里允许禁用对存在于PHP_CONFIG_FILE_SCAN_DIR中的路径下的配置文件的搜索，
+	 * 但是仍然会载入可选的ini文件
+	 * */
 	if (!sapi_module.php_ini_ignore || sapi_module.php_ini_path_override) {
 
 		/* Check if php_ini_file_name is a file and can be opened */
+		/* 检查 php_ini_file_name 是否是一个可以打开的文件 */
 		if (php_ini_file_name && php_ini_file_name[0]) {
 			zend_stat_t statbuf;
 
+			/* 调用stat函数检查php_ini_file_name文件信息 */
 			if (!VCWD_STAT(php_ini_file_name, &statbuf)) {
+				/* 如果不是一个一个文件目录 */
 				if (!((statbuf.st_mode & S_IFMT) == S_IFDIR)) {
+					/* 只读方式打开 */
 					fh.handle.fp = VCWD_FOPEN(php_ini_file_name, "r");
 					if (fh.handle.fp) {
 						fh.filename = expand_filepath(php_ini_file_name, NULL);
@@ -559,9 +579,10 @@ int php_init_config(void)
 		}
 
 		/* Otherwise search for php-%sapi-module-name%.ini file in search path */
+		/* 无法获取fp的话就从搜索路径下搜索php-%sapi-module-name%.ini */
 		if (!fh.handle.fp) {
 			const char *fmt = "php-%s.ini";
-			char *ini_fname;
+			char *ini_fname; /* 用于存放fmt替换后的字符串名称，例如php-cli.ini */
 			spprintf(&ini_fname, 0, fmt, sapi_module.name);
 			fh.handle.fp = php_fopen_with_path(ini_fname, "r", php_ini_search_path, &opened_path);
 			efree(ini_fname);
@@ -571,6 +592,7 @@ int php_init_config(void)
 		}
 
 		/* If still no ini file found, search for php.ini file in search path */
+		/* 如何仍然还没有找到，再从搜索路径中搜索php.ini */
 		if (!fh.handle.fp) {
 			fh.handle.fp = php_fopen_with_path("php.ini", "r", php_ini_search_path, &opened_path);
 			if (fh.handle.fp) {
@@ -580,6 +602,7 @@ int php_init_config(void)
 	}
 
 	if (free_ini_search_path) {
+		/* 释放php_ini_search_path这个字符串占用的内存空间 */
 		efree(php_ini_search_path);
 	}
 
@@ -606,14 +629,17 @@ int php_init_config(void)
 	}
 
 	/* Check for PHP_INI_SCAN_DIR environment variable to override/set config file scan directory */
+	/* 检查PHP_INI_SCAN_DIR环境变量，来重写或者设置配置文件的遍历路径 */
 	php_ini_scanned_path = getenv("PHP_INI_SCAN_DIR");
 	if (!php_ini_scanned_path) {
 		/* Or fall back using possible --with-config-file-scan-dir setting (defaults to empty string!) */
+		/* 如果环境变量没有的话，看看用户有没有在启动的时候制定了--with-config-file-scan-dir */
 		php_ini_scanned_path = PHP_CONFIG_FILE_SCAN_DIR;
 	}
 	php_ini_scanned_path_len = (int)strlen(php_ini_scanned_path);
 
 	/* Scan and parse any .ini files found in scan path if path not empty. */
+	/* 如果SAPI不想忽略所有的php，并且有指定的扫描目录，则 */
 	if (!sapi_module.php_ini_ignore && php_ini_scanned_path_len) {
 		struct dirent **namelist;
 		int ndir, i;
@@ -701,6 +727,7 @@ int php_init_config(void)
 		zend_llist_destroy(&scanned_ini_list);
 	} else {
 		/* Make sure an empty php_ini_scanned_path ends up as NULL */
+		/* 没有设定的scan目录，置空 */
 		php_ini_scanned_path = NULL;
 	}
 
