@@ -36,11 +36,11 @@ void zend_interned_strings_dtor(void);
 END_EXTERN_C()
 
 /* Shortcuts */
-
-#define ZSTR_VAL(zstr)  (zstr)->val
-#define ZSTR_LEN(zstr)  (zstr)->len
-#define ZSTR_H(zstr)    (zstr)->h
-#define ZSTR_HASH(zstr) zend_string_hash_val(zstr)
+/* 简写 */
+#define ZSTR_VAL(zstr)  (zstr)->val 					// 取值
+#define ZSTR_LEN(zstr)  (zstr)->len					    // 取字符串长度
+#define ZSTR_H(zstr)    (zstr)->h 						// 返回hash值
+#define ZSTR_HASH(zstr) zend_string_hash_val(zstr) 		// 获取hash值，先尝试从h中拿，拿不到就计算
 
 /* Compatibility macros */
 
@@ -79,6 +79,7 @@ END_EXTERN_C()
 
 /*---*/
 
+/* 返回zend_string的hash值，如果hash值不存在，则调用hash函数生成 */
 static zend_always_inline zend_ulong zend_string_hash_val(zend_string *s)
 {
 	if (!ZSTR_H(s)) {
@@ -279,6 +280,7 @@ static zend_always_inline void zend_string_free(zend_string *s)
 	}
 }
 
+/* 释放掉zend_string */
 static zend_always_inline void zend_string_release(zend_string *s)
 {
 	if (!ZSTR_IS_INTERNED(s)) {

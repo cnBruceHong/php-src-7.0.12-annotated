@@ -312,6 +312,7 @@ ZEND_API void file_handle_dtor(zend_file_handle *fh) /* {{{ */
 }
 /* }}} */
 
+/* 初始化编译器 */
 void init_compiler(void) /* {{{ */
 {
 	CG(arena) = zend_arena_create(64 * 1024);
@@ -325,6 +326,7 @@ void init_compiler(void) /* {{{ */
 }
 /* }}} */
 
+/* 停止编译器，主要是用来释放一些编译过程的变量和内存 */
 void shutdown_compiler(void) /* {{{ */
 {
 	zend_stack_destroy(&CG(loop_var_stack));
@@ -377,26 +379,32 @@ ZEND_API zend_bool zend_is_compiling(void) /* {{{ */
 }
 /* }}} */
 
+/* 把当前op_array中的T值返回后自增一 */
 static uint32_t get_temporary_variable(zend_op_array *op_array) /* {{{ */
 {
 	return (uint32_t)op_array->T++;
 }
 /* }}} */
 
+/* 查找并添加一个CV变量到op_array */
 static int lookup_cv(zend_op_array *op_array, zend_string* name) /* {{{ */{
 	int i = 0;
-	zend_ulong hash_value = zend_string_hash_val(name);
+	zend_ulong hash_value = zend_string_hash_val(name); // 取name结构体中的hash值
 
+	/* 遍历op_array */
 	while (i < op_array->last_var) {
 		if (ZSTR_VAL(op_array->vars[i]) == ZSTR_VAL(name) ||
 		    (ZSTR_H(op_array->vars[i]) == hash_value &&
 		     ZSTR_LEN(op_array->vars[i]) == ZSTR_LEN(name) &&
 		     memcmp(ZSTR_VAL(op_array->vars[i]), ZSTR_VAL(name), ZSTR_LEN(name)) == 0)) {
+				 /* 如果相等，释放name的内存 */
 			zend_string_release(name);
 			return (int)(zend_intptr_t)ZEND_CALL_VAR_NUM(NULL, i);
 		}
 		i++;
 	}
+	/*  找不到，加入op_array的vals中 */
+	/* 记录尾部编码 */
 	i = op_array->last_var;
 	op_array->last_var++;
 	if (op_array->last_var > CG(context).vars_size) {
@@ -1574,11 +1582,15 @@ ZEND_API void zend_activate_auto_globals(void) /* {{{ */
 }
 /* }}} */
 
-/* zend词法切分函数 */
+/** 
+ * zend词法切分函数
+ * elem baocun  
+ * @return int token类型，即retval
+ */
 int zendlex(zend_parser_stack_elem *elem) /* {{{ */
 {
-	zval zv;
-	int retval;
+	zval zv;	/* 保存词法提取到的值 */
+	int retval; /* 保存词法解析后返回的token类型 */
 
 	if (CG(increment_lineno)) {
 		CG(zend_lineno)++;
@@ -1586,7 +1598,8 @@ int zendlex(zend_parser_stack_elem *elem) /* {{{ */
 	}
 
 again:
-	ZVAL_UNDEF(&zv);
+	ZVAL_UNDEF(&zv); // (zv).u1.type_info = IS_UNDEF
+	/* 使用lex_scan进行词法扫描，拿到token类型 */
 	retval = lex_scan(&zv);
 	if (EG(exception)) {
 		return T_ERROR;
@@ -1597,19 +1610,23 @@ again:
 		case T_DOC_COMMENT:
 		case T_OPEN_TAG:
 		case T_WHITESPACE:
+			/* 如果是注释，文档注释，<?，空格，重新执行扫描 */
 			goto again;
 
 		case T_CLOSE_TAG:
+			/* ?> */
 			if (LANG_SCNG(yy_text)[LANG_SCNG(yy_leng)-1] != '>') {
 				CG(increment_lineno) = 1;
 			}
 			retval = ';'; /* implicit ; */
 			break;
 		case T_OPEN_TAG_WITH_ECHO:
+			/* echo输出 */
 			retval = T_ECHO;
 			break;
 	}
 	if (Z_TYPE(zv) != IS_UNDEF) {
+		/* 构建ast */
 		elem->ast = zend_ast_create_zval(&zv);
 	}
 
@@ -2207,6 +2224,7 @@ static zend_op *zend_compile_class_ref(znode *result, zend_ast *name_ast, int th
 }
 /* }}} */
 
+/* 尝试组装一个CV变量 */
 static int zend_try_compile_cv(znode *result, zend_ast *ast) /* {{{ */
 {
 	zend_ast *name_ast = ast->child[0];
@@ -2218,7 +2236,7 @@ static int zend_try_compile_cv(znode *result, zend_ast *ast) /* {{{ */
 			return FAILURE;
 		}
 
-		result->op_type = IS_CV;
+		result->op_type = IS_CV; // 标记为CV变量
 		result->u.op.var = lookup_cv(CG(active_op_array), name);
 
 		/* lookup_cv may be using another zend_string instance  */
@@ -2566,6 +2584,7 @@ zend_bool zend_list_has_assign_to_self(zend_ast *list_ast, zend_ast *expr_ast) /
 }
 /* }}} */
 
+/* 赋值语句 */
 void zend_compile_assign(znode *result, zend_ast *ast) /* {{{ */
 {
 	zend_ast *var_ast = ast->child[0];
@@ -7031,6 +7050,7 @@ void zend_const_expr_to_zval(zval *result, zend_ast *ast) /* {{{ */
 /* }}} */
 
 /* Same as compile_stmt, but with early binding */
+/* 编译语法树最顶端，也是编译的开始 */
 void zend_compile_top_stmt(zend_ast *ast) /* {{{ */
 {
 	if (!ast) {
@@ -7038,14 +7058,18 @@ void zend_compile_top_stmt(zend_ast *ast) /* {{{ */
 	}
 
 	if (ast->kind == ZEND_AST_STMT_LIST) {
+		/* 如果节点是个list133，还原为list */
 		zend_ast_list *list = zend_ast_get_list(ast);
 		uint32_t i;
+		/* 遍历子节点 */
 		for (i = 0; i < list->children; ++i) {
+			/* 递归调用 */
 			zend_compile_top_stmt(list->child[i]);
 		}
 		return;
 	}
 
+	/* 不是133类节点，继续*/
 	zend_compile_stmt(ast);
 
 	if (ast->kind != ZEND_AST_NAMESPACE && ast->kind != ZEND_AST_HALT_COMPILER) {
@@ -7058,18 +7082,21 @@ void zend_compile_top_stmt(zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+/* 编译语句 */
 void zend_compile_stmt(zend_ast *ast) /* {{{ */
 {
 	if (!ast) {
 		return;
 	}
 
+	/* 记录行号 */
 	CG(zend_lineno) = ast->lineno;
 
 	if ((CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO) && !zend_is_unticked_stmt(ast)) {
 		zend_do_extended_info();
 	}
 
+	/* 根据不同的kind，调用不同的编译函数 */
 	switch (ast->kind) {
 		case ZEND_AST_STMT_LIST:
 			zend_compile_stmt_list(ast);
@@ -7171,6 +7198,7 @@ void zend_compile_stmt(zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+/* 编译表达式 */
 void zend_compile_expr(znode *result, zend_ast *ast) /* {{{ */
 {
 	/* CG(zend_lineno) = ast->lineno; */

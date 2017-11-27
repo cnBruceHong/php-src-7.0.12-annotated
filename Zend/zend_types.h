@@ -166,7 +166,7 @@ struct _zend_string {
 	zend_refcounted_h gc;				/* gc信息 */
 	zend_ulong        h;                /* hash value 哈希值 */
 	size_t            len;				/* 字符串长度 */
-	char              val[1];
+	char              val[1]; 			/* 字符串的值 */
 };
 
 /* 哈希表中实际存放值的『桶』 */
