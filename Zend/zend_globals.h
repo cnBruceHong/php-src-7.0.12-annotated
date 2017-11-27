@@ -133,7 +133,7 @@ struct _zend_compiler_globals {
 #endif
 };
 
-/* zend执行器全局变量 */
+/* zend执行过程的全局符号表，EG宏操作对象 */
 struct _zend_executor_globals {
 	zval uninitialized_zval;
 	zval error_zval;
@@ -143,24 +143,24 @@ struct _zend_executor_globals {
 	zend_array **symtable_cache_limit;
 	zend_array **symtable_cache_ptr;
 
-	zend_array symbol_table;		/* main symbol table */
+	zend_array symbol_table;		/* main symbol table，全局变量Hash表，$_GET等 */
 
-	HashTable included_files;	/* files already included */
+	HashTable included_files;	/* files already included，已经include了的文件 */
 
 	JMP_BUF *bailout;
 
-	int error_reporting;
-	int exit_status;
+	int error_reporting;		// 保存错误码
+	int exit_status;  			// 保存退出状态码
 
-	HashTable *function_table;	/* function symbol table */
-	HashTable *class_table;		/* class table */
-	HashTable *zend_constants;	/* constants table */
+	HashTable *function_table;	/* function symbol table，已经编译好的函数表，包括内部函数和用户自定义函数等，函数调用从这里查找 */
+	HashTable *class_table;		/* class table，全部已经编译好的类，new的时候从这里查找 */
+	HashTable *zend_constants;	/* constants table，常量表 */
 
-	zval          *vm_stack_top;
-	zval          *vm_stack_end;
-	zend_vm_stack  vm_stack;
+	zval          *vm_stack_top; //运行栈内存池，栈顶指针
+	zval          *vm_stack_end; //运行栈内存池，栈底指针
+	zend_vm_stack  vm_stack; // 运行栈内存池，空白内存池用于分配PHP运行过程一些结构(zend_execute_data)，局部变量就分配在上面
 
-	struct _zend_execute_data *current_execute_data;
+	struct _zend_execute_data *current_execute_data; // 指向当前正在运行的zend_execute_data
 	zend_class_entry *scope;
 
 	zend_long precision;
@@ -168,7 +168,7 @@ struct _zend_executor_globals {
 	int ticks_count;
 
 	HashTable *in_autoload;
-	zend_function *autoload_func;
+	zend_function *autoload_func; // 自动加载函数 __autoload()
 	zend_bool full_tables_cleanup;
 
 	/* for extended information support */
@@ -197,7 +197,7 @@ struct _zend_executor_globals {
 
 	int lambda_count;
 
-	HashTable *ini_directives;
+	HashTable *ini_directives; //php.ini 配置
 	HashTable *modified_ini_directives;
 	zend_ini_entry *error_reporting_ini_entry;
 

@@ -730,7 +730,7 @@ static int do_cli(int argc, char **argv) /* {{{ */
 		while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2)) != -1) {
 			switch (c) {
 
-			case 'a':	/* interactive mode */
+			case 'a':	/* interactive mode，交互命令环境 */
 				if (!interactive) {
 					if (behavior != PHP_MODE_STANDARD) {
 						param_error = param_mode_conflict;
@@ -895,6 +895,7 @@ static int do_cli(int argc, char **argv) /* {{{ */
 
 		if (interactive) {
 #if (HAVE_LIBREADLINE || HAVE_LIBEDIT) && !defined(COMPILE_DL_READLINE)
+			/* 需要 --with-readline */
 			printf("Interactive shell\n\n");
 #else
 			printf("Interactive mode enabled\n\n");

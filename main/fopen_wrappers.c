@@ -659,6 +659,7 @@ PHPAPI FILE *php_fopen_with_path(const char *filename, const char *mode, const c
 	/* 检查path */
 	/* append the calling scripts' current working directory
 	 * as a fall back case
+	 * 追加当前脚本执行的工作目录作为一种后备方案
 	 */
 	if (zend_is_executing() &&
 	    (exec_filename = zend_get_executed_filename_ex()) != NULL) {

@@ -1574,6 +1574,7 @@ ZEND_API void zend_activate_auto_globals(void) /* {{{ */
 }
 /* }}} */
 
+/* zend词法切分函数 */
 int zendlex(zend_parser_stack_elem *elem) /* {{{ */
 {
 	zval zv;

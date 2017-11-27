@@ -693,7 +693,7 @@ int zend_startup(zend_utility_functions *utility_functions, char **extensions) /
 	zend_execute_ex = dtrace_execute_ex;
 	zend_execute_internal = dtrace_execute_internal;
 #else
-	zend_compile_file = compile_file; 	/* 将编译文件数组赋值 */
+	zend_compile_file = compile_file; 	/* 指定编译器函数 */
 	zend_execute_ex = execute_ex;
 	zend_execute_internal = NULL;
 #endif /* HAVE_SYS_SDT_H */
@@ -1426,6 +1426,7 @@ ZEND_API void zend_try_exception_handler() /* {{{ */
 	}
 } /* }}} */
 
+/* zendvm执行脚本文件的入口函数 */
 ZEND_API int zend_execute_scripts(int type, zval *retval, int file_count, ...) /* {{{ */
 {
 	va_list files;

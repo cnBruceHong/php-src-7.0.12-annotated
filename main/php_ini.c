@@ -639,7 +639,7 @@ int php_init_config(void)
 	php_ini_scanned_path_len = (int)strlen(php_ini_scanned_path);
 
 	/* Scan and parse any .ini files found in scan path if path not empty. */
-	/* 如果SAPI不想忽略所有的php，并且有指定的扫描目录，则 */
+	/* 如果scan路径不为空，就扫描和解析所有已经被找到的.ini文件 */
 	if (!sapi_module.php_ini_ignore && php_ini_scanned_path_len) {
 		struct dirent **namelist;
 		int ndir, i;

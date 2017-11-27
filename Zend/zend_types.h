@@ -136,7 +136,7 @@ struct _zval_struct {
 		uint32_t     var_flags;
 		uint32_t     next;                 /* hash collision chain */ /* 哈希冲突碰撞链 */
 		uint32_t     cache_slot;           /* literal cache slot */
-		uint32_t     lineno;               /* line number (for ast nodes) */
+		uint32_t     lineno;               /* line number (for ast nodes) ast节点用于存放行号 */
 		uint32_t     num_args;             /* arguments number for EX(This) */
 		uint32_t     fe_pos;               /* foreach position */
 		uint32_t     fe_iter_idx;          /* foreach iterator index */
@@ -313,6 +313,7 @@ struct _zend_ast_ref {
 };
 
 /* regular data types */
+/* 常规数据类型 */
 #define IS_UNDEF					0
 #define IS_NULL						1
 #define IS_FALSE					2
@@ -326,6 +327,7 @@ struct _zend_ast_ref {
 #define IS_REFERENCE				10
 
 /* constant expressions */
+/* 常量表达式 */
 #define IS_CONSTANT					11
 #define IS_CONSTANT_AST				12
 

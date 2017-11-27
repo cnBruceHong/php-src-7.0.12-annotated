@@ -29,6 +29,7 @@
 #define ZEND_AST_IS_LIST_SHIFT      7
 #define ZEND_AST_NUM_CHILDREN_SHIFT 8
 
+/* AST的节点类型 */
 enum _zend_ast_kind {
 	/* special nodes */
 	ZEND_AST_ZVAL = 1 << ZEND_AST_SPECIAL_SHIFT,
@@ -46,7 +47,7 @@ enum _zend_ast_kind {
 	ZEND_AST_ARRAY,
 	ZEND_AST_ENCAPS_LIST,
 	ZEND_AST_EXPR_LIST,
-	ZEND_AST_STMT_LIST,
+	ZEND_AST_STMT_LIST, // 特殊值，不代表任何语法，用来组织节点
 	ZEND_AST_IF,
 	ZEND_AST_SWITCH_LIST,
 	ZEND_AST_CATCH_LIST,
@@ -151,23 +152,26 @@ enum _zend_ast_kind {
 typedef uint16_t zend_ast_kind;
 typedef uint16_t zend_ast_attr;
 
+/* 普通节点 */
 struct _zend_ast {
-	zend_ast_kind kind; /* Type of the node (ZEND_AST_* enum constant) */
-	zend_ast_attr attr; /* Additional attribute, use depending on node type */
-	uint32_t lineno;    /* Line number */
-	zend_ast *child[1]; /* Array of children (using struct hack) */
+	zend_ast_kind kind; /* Type of the node (ZEND_AST_* enum constant)，节点的类型 */
+	zend_ast_attr attr; /* Additional attribute, use depending on node type，额外的属性 */
+	uint32_t lineno;    /* Line number，行号 */
+	zend_ast *child[1]; /* Array of children (using struct hack)，子节点数组 */
 };
 
 /* Same as zend_ast, but with children count, which is updated dynamically */
+/* list节点，和zend_ast差不多，但是多了动态变化的子节点数 */
 typedef struct _zend_ast_list {
 	zend_ast_kind kind;
 	zend_ast_attr attr;
 	uint32_t lineno;
-	uint32_t children;
+	uint32_t children; /* 动态变化 */
 	zend_ast *child[1];
 } zend_ast_list;
 
 /* Lineno is stored in val.u2.lineno */
+/* 数据节点，一般做叶子节点 */
 typedef struct _zend_ast_zval {
 	zend_ast_kind kind;
 	zend_ast_attr attr;
@@ -175,6 +179,7 @@ typedef struct _zend_ast_zval {
 } zend_ast_zval;
 
 /* Separate structure for function and class declaration, as they need extra information. */
+/* 这类节点用于函数和类的声明，它们需要携带额外的信息 */
 typedef struct _zend_ast_decl {
 	zend_ast_kind kind;
 	zend_ast_attr attr; /* Unused - for structure compatibility */

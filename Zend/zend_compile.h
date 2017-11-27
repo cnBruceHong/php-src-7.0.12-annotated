@@ -153,16 +153,16 @@ void zend_const_expr_to_zval(zval *result, zend_ast *ast);
 typedef int (*user_opcode_handler_t) (zend_execute_data *execute_data);
 
 struct _zend_op {
-	const void *handler;
-	znode_op op1;
-	znode_op op2;
-	znode_op result;
-	uint32_t extended_value;
-	uint32_t lineno;
-	zend_uchar opcode;
-	zend_uchar op1_type;
-	zend_uchar op2_type;
-	zend_uchar result_type;
+	const void *handler; 		// 指令执行的handler，就是一个处理函数
+	znode_op op1; 				// 操作数1
+	znode_op op2; 				// 操作数2
+	znode_op result; 			// 返回值
+	uint32_t extended_value;	// 
+	uint32_t lineno;			// 保存行号
+	zend_uchar opcode;			// opcode指令
+	zend_uchar op1_type;		// 操作数1的类型
+	zend_uchar op2_type; 		// 操作数2的类型
+	zend_uchar result_type;		// 返回值类型
 };
 
 
@@ -348,11 +348,11 @@ struct _zend_op_array {
 	uint32_t this_var;
 
 	uint32_t last;
-	zend_op *opcodes;
+	zend_op *opcodes; // opcode的指令数组
 
-	int last_var;
-	uint32_t T;
-	zend_string **vars;
+	int last_var; // 代码中定义的变量数(CV)，编译前值为0，发现一个新变量+1
+	uint32_t T;		// 临时变量数，IS_TMP_VAR和IS_VAR
+	zend_string **vars; //PHP变量名数组，这个数组在ast编译期间配合last_var来确定各个变量的编号
 
 	int last_brk_cont;
 	int last_try_catch;
@@ -360,7 +360,7 @@ struct _zend_op_array {
 	zend_try_catch_element *try_catch_array;
 
 	/* static variables support */
-	HashTable *static_variables;
+	HashTable *static_variables; // 静态变量符号表，static声明的
 
 	zend_string *filename;
 	uint32_t line_start;
@@ -368,11 +368,11 @@ struct _zend_op_array {
 	zend_string *doc_comment;
 	uint32_t early_binding; /* the linked list of delayed declarations */
 
-	int last_literal;
-	zval *literals;
+	int last_literal;	// 字面量数量
+	zval *literals;		// 字面量数组
 
-	int  cache_size;
-	void **run_time_cache;
+	int  cache_size;	// 运行时缓存数组大小
+	void **run_time_cache; // 运行时缓存数组
 
 	void *reserved[ZEND_MAX_RESERVED_RESOURCES];
 };
@@ -428,13 +428,13 @@ typedef enum _zend_call_kind {
 } zend_call_kind;
 
 struct _zend_execute_data {
-	const zend_op       *opline;           /* executed opline                */
-	zend_execute_data   *call;             /* current call                   */
+	const zend_op       *opline;           /* executed opline，当前执行中的指令，可以理解为eip指令寄存器的作用 */
+	zend_execute_data   *call;             /* current call，  */
 	zval                *return_value;
 	zend_function       *func;             /* executed funcrion              */
 	zval                 This;             /* this + call_info + num_args    */
 	zend_class_entry    *called_scope;
-	zend_execute_data   *prev_execute_data;
+	zend_execute_data   *prev_execute_data; // 调用上下文，当调用函数或者include时，会把当前zend_execute_data保存在被调用函数的zend_execute_data的这个指针中
 	zend_array          *symbol_table;
 #if ZEND_EX_USE_RUN_TIME_CACHE
 	void               **run_time_cache;   /* cache op_array->run_time_cache */
@@ -646,13 +646,13 @@ struct _zend_execute_data {
 
 #endif
 
-#define IS_CONST	(1<<0)
-#define IS_TMP_VAR	(1<<1)
-#define IS_VAR		(1<<2)
-#define IS_UNUSED	(1<<3)	/* Unused variable */
-#define IS_CV		(1<<4)	/* Compiled variable */
+#define IS_CONST	(1<<0)  /* 字面量，123，"Hello"... */
+#define IS_TMP_VAR	(1<<1)	/* 临时变量，$a = "Hello" . time() 这里"Hello" . time()就是一个临时变量  */
+#define IS_VAR		(1<<2)	/* 变量，例如 $a = time() 这里time()就是一个IS_VAR */
+#define IS_UNUSED	(1<<3)	/* Unused variable 这个操作数没有被使用 */
+#define IS_CV		(1<<4)	/* Compiled variable CV常量，例如$a,$b,$username */
 
-#define EXT_TYPE_UNUSED	(1<<5)
+#define EXT_TYPE_UNUSED	(1<<5) /* 又返回值，但是没有被使用 */
 
 #include "zend_globals.h"
 
