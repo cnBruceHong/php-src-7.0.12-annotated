@@ -428,19 +428,22 @@ void init_op(zend_op *op)
 	SET_UNUSED(op->result);
 }
 
+/* 从op_array中获取新的opcode空间 */
 zend_op *get_next_op(zend_op_array *op_array)
 {
+	/* 获取下一条opcode的序号，即新加入的是第几条opcodes */
 	uint32_t next_op_num = op_array->last++;
 	zend_op *next_op;
 
+	/* 如果增加一条opcode会超过内存空间，重新申请4倍空间的opcodes */
 	if (next_op_num >= CG(context).opcodes_size) {
 		CG(context).opcodes_size *= 4;
 		op_array_alloc_ops(op_array, CG(context).opcodes_size);
 	}
 
-	next_op = &(op_array->opcodes[next_op_num]);
+	next_op = &(op_array->opcodes[next_op_num]); // 存放空间的地址
 
-	init_op(next_op);
+	init_op(next_op); // 初始化一下
 
 	return next_op;
 }

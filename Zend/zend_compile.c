@@ -397,13 +397,14 @@ static int lookup_cv(zend_op_array *op_array, zend_string* name) /* {{{ */{
 		    (ZSTR_H(op_array->vars[i]) == hash_value &&
 		     ZSTR_LEN(op_array->vars[i]) == ZSTR_LEN(name) &&
 		     memcmp(ZSTR_VAL(op_array->vars[i]), ZSTR_VAL(name), ZSTR_LEN(name)) == 0)) {
-				 /* 如果相等，释放name的内存 */
+			/* 如果相等，释放name的内存 */
 			zend_string_release(name);
+			/* 这里返回的是内存的偏移量，不是数组下标 */
 			return (int)(zend_intptr_t)ZEND_CALL_VAR_NUM(NULL, i);
 		}
 		i++;
 	}
-	/*  找不到，加入op_array的vals中 */
+	/* 找不到，加入op_array的vals中 */
 	/* 记录尾部编码 */
 	i = op_array->last_var;
 	op_array->last_var++;
@@ -1866,14 +1867,16 @@ static void zend_adjust_for_fetch_type(zend_op *opline, uint32_t type) /* {{{ */
 }
 /* }}} */
 
+/* 将结果处理为一个var值 */
 static inline void zend_make_var_result(znode *result, zend_op *opline) /* {{{ */
 {
-	opline->result_type = IS_VAR;
+	opline->result_type = IS_VAR; // opline的返回值都是IS_VAR
 	opline->result.var = get_temporary_variable(CG(active_op_array));
 	GET_NODE(result, opline->result);
 }
 /* }}} */
 
+/* 将result处理为一个tmp值 */
 static inline void zend_make_tmp_result(znode *result, zend_op *opline) /* {{{ */
 {
 	opline->result_type = IS_TMP_VAR;
@@ -1882,23 +1885,27 @@ static inline void zend_make_tmp_result(znode *result, zend_op *opline) /* {{{ *
 }
 /* }}} */
 
+/* 生成opline指令中的返回值result,左边操作数op1,右边操作数op2 */
 static zend_op *zend_emit_op(znode *result, zend_uchar opcode, znode *op1, znode *op2) /* {{{ */
 {
-	zend_op *opline = get_next_op(CG(active_op_array));
+	zend_op *opline = get_next_op(CG(active_op_array)); // 获取下一条opcodes的空间
 	opline->opcode = opcode;
 
 	if (op1 == NULL) {
+		/* 如果没有操作数，标记为 IS_UNUSED */
 		SET_UNUSED(opline->op1);
 	} else {
 		SET_NODE(opline->op1, op1);
 	}
 
 	if (op2 == NULL) {
+		/* 如果没有操作数，标记为 IS_UNUSED */
 		SET_UNUSED(opline->op2);
 	} else {
 		SET_NODE(opline->op2, op2);
 	}
 
+	/* 对返回值处理 */
 	if (result) {
 		zend_make_var_result(result, opline);
 	}
@@ -2584,11 +2591,11 @@ zend_bool zend_list_has_assign_to_self(zend_ast *list_ast, zend_ast *expr_ast) /
 }
 /* }}} */
 
-/* 赋值语句 */
+/* 对赋值语句进行编译 */
 void zend_compile_assign(znode *result, zend_ast *ast) /* {{{ */
 {
-	zend_ast *var_ast = ast->child[0];
-	zend_ast *expr_ast = ast->child[1];
+	zend_ast *var_ast = ast->child[0]; // 左边应该是一个CV变量
+	zend_ast *expr_ast = ast->child[1]; // 右边是一个值或者表达式类型
 
 	znode var_node, expr_node;
 	zend_op *opline;
@@ -2604,10 +2611,10 @@ void zend_compile_assign(znode *result, zend_ast *ast) /* {{{ */
 		case ZEND_AST_VAR:
 		case ZEND_AST_STATIC_PROP:
 			offset = zend_delayed_compile_begin();
-			zend_delayed_compile_var(&var_node, var_ast, BP_VAR_W);
-			zend_compile_expr(&expr_node, expr_ast);
+			zend_delayed_compile_var(&var_node, var_ast, BP_VAR_W); // 先编译左边
+			zend_compile_expr(&expr_node, expr_ast); // 再编译后边
 			zend_delayed_compile_end(offset);
-			zend_emit_op(result, ZEND_ASSIGN, &var_node, &expr_node);
+			zend_emit_op(result, ZEND_ASSIGN, &var_node, &expr_node); // 将两个得到的操作数和opcode生成opline
 			return;
 		case ZEND_AST_DIM:
 			offset = zend_delayed_compile_begin();
@@ -3680,15 +3687,20 @@ void zend_compile_return(zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+/* echo语句编译函数 */
 void zend_compile_echo(zend_ast *ast) /* {{{ */
 {
 	zend_op *opline;
-	zend_ast *expr_ast = ast->child[0];
+	zend_ast *expr_ast = ast->child[0]; // 只需要处理右边的表达式
 
 	znode expr_node;
-	zend_compile_expr(&expr_node, expr_ast);
+	zend_compile_expr(&expr_node, expr_ast); // 对右边表达式进行编译
 
-	opline = zend_emit_op(NULL, ZEND_ECHO, &expr_node, NULL);
+	// 处理完成后 
+	// expr_node->u.constant = expr_ast->val
+	// expr_node->op_type = IS_CONST
+
+	opline = zend_emit_op(NULL, ZEND_ECHO, &expr_node, NULL); // 生成opline
 	opline->extended_value = 0;
 }
 /* }}} */

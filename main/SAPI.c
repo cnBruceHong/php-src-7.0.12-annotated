@@ -997,6 +997,7 @@ SAPI_API int sapi_register_input_filter(unsigned int (*input_filter)(int arg, ch
 	return SUCCESS;
 }
 
+/* 调用sapi定义的flush函数输出数据 */
 SAPI_API int sapi_flush(void)
 {
 	if (sapi_module.flush) {

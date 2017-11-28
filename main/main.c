@@ -975,6 +975,7 @@ PHPAPI void php_html_puts(const char *str, size_t size)
 
 /* {{{ php_error_cb
  extended error handling function */
+ /* php_error_cb 函数，用来处理错误 */
 static ZEND_COLD void php_error_cb(int type, const char *error_filename, const uint error_lineno, const char *format, va_list args)
 {
 	char *buffer;
@@ -1020,6 +1021,7 @@ static ZEND_COLD void php_error_cb(int type, const char *error_filename, const u
 	}
 
 	/* according to error handling mode, suppress error, throw exception or show it */
+	/* 根据错误的类型，抛出错误或者直接展示 */
 	if (EG(error_handling) != EH_NORMAL) {
 		switch (type) {
 			case E_ERROR:
@@ -1028,6 +1030,7 @@ static ZEND_COLD void php_error_cb(int type, const char *error_filename, const u
 			case E_USER_ERROR:
 			case E_PARSE:
 				/* fatal errors are real errors and cannot be made exceptions */
+				/* 发生致命错误没办法抛出异常了 */
 				break;
 			case E_STRICT:
 			case E_DEPRECATED:
@@ -1042,6 +1045,7 @@ static ZEND_COLD void php_error_cb(int type, const char *error_filename, const u
 				/* throw an exception if we are in EH_THROW mode
 				 * but DO NOT overwrite a pending exception
 				 */
+				/* 抛出异常 */
 				if (EG(error_handling) == EH_THROW && !EG(exception)) {
 					zend_throw_error_exception(EG(exception_class), buffer, 0, type);
 				}
@@ -2047,7 +2051,7 @@ int php_module_startup(sapi_module_struct *sf, zend_module_entry *additional_mod
 	/* Disable the message box for assertions.*/
 	_CrtSetReportMode(_CRT_ASSERT, 0);
 #else
-	php_os = PHP_OS;
+	php_os = PHP_OS; /* 说明操作系统类型 */
 #endif
 
 #ifdef ZTS
@@ -2359,6 +2363,7 @@ void php_module_shutdown_for_exec(void)
 
 /* {{{ php_module_shutdown_wrapper
  */
+/* cli的模块关闭函数 */
 int php_module_shutdown_wrapper(sapi_module_struct *sapi_globals)
 {
 	php_module_shutdown();
@@ -2391,8 +2396,10 @@ void php_module_shutdown(void)
 	php_win32_free_rng_lock();
 #endif
 
+	/* 输出数据 */
 	sapi_flush();
 
+	/* 关闭zend引擎 */
 	zend_shutdown();
 
 	/* Destroys filter & transport registries too */

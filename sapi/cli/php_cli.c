@@ -418,6 +418,7 @@ static void sapi_cli_send_header(sapi_header_struct *sapi_header, void *server_c
 }
 /* }}} */
 
+/* cli的启动函数，主要处理了一些运行时的模块加载 */
 static int php_cli_startup(sapi_module_struct *sapi_module) /* {{{ */
 {
 	if (php_module_startup(sapi_module, NULL, 0)==FAILURE) {
@@ -446,30 +447,31 @@ static void sapi_cli_ini_defaults(HashTable *configuration_hash)
 /* {{{ sapi_module_struct cli_sapi_module
  */
 static sapi_module_struct cli_sapi_module = {
-	"cli",							/* name */
-	"Command Line Interface",    	/* pretty name */
+	"cli",							/* name 名称 */
+	"Command Line Interface",    	/* pretty name 可读名称 */
 
-	php_cli_startup,				/* startup */
-	php_module_shutdown_wrapper,	/* shutdown */
+	php_cli_startup,				/* startup 启动函数 */
+	php_module_shutdown_wrapper,	/* shutdown 结束函数 */
 
-	NULL,							/* activate */
-	sapi_cli_deactivate,			/* deactivate */
+	NULL,							/* activate 请求初始化函数，cli不需要 */
+	sapi_cli_deactivate,			/* deactivate 请求收尾函数，fflush(stdout) */
 
-	sapi_cli_ub_write,		    	/* unbuffered write */
+	sapi_cli_ub_write,		    	/* unbuffered write，输出数据的函数，cli模式是标准输出 */
 	sapi_cli_flush,				    /* flush */
 	NULL,							/* get uid */
 	NULL,							/* getenv */
 
-	php_error,						/* error handler */
+	php_error,						/* error handler 错误处理函数 */
 
+	/* 头部请求发送函数 */
 	sapi_cli_header_handler,		/* header handler */
 	sapi_cli_send_headers,			/* send headers handler */
-	sapi_cli_send_header,			/* send header handler */
+	sapi_cli_send_header,			/* send header handler 发送请求 */
 
-	NULL,				            /* read POST data */
-	sapi_cli_read_cookies,          /* read Cookies */
+	NULL,				            /* read POST data 读取POST数据，cli不需要 */
+	sapi_cli_read_cookies,          /* read Cookies, 获取cookies函数，cli下是个空函数 */
 
-	sapi_cli_register_variables,	/* register server variables */
+	sapi_cli_register_variables,	/* register server variables 向$_SERVER注册变量的函数 */
 	sapi_cli_log_message,			/* Log message */
 	NULL,							/* Get request time */
 	NULL,							/* Child terminate */
@@ -1240,6 +1242,7 @@ int main(int argc, char *argv[])
 	while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2))!=-1) {
 		switch (c) {
 			case 'c':
+				/* ini_path_override 可以理解为指定的ini配置文件 */
 				if (ini_path_override) {
 					free(ini_path_override);
 				}
@@ -1250,6 +1253,7 @@ int main(int argc, char *argv[])
 				break;
 			case 'd': {
 				/* define ini entries on command line */
+				/* 通过命令行设置ini参数 */
 				int len = (int)strlen(php_optarg);
 				char *val;
 
@@ -1301,7 +1305,7 @@ int main(int argc, char *argv[])
 	}
 exit_loop:
 
-	sapi_module->ini_defaults = sapi_cli_ini_defaults;
+	sapi_module->ini_defaults = sapi_cli_ini_defaults; // 设置一些默认的ini
 	sapi_module->php_ini_path_override = ini_path_override;
 	sapi_module->phpinfo_as_text = 1;
 	sapi_module->php_ini_ignore_cwd = 1;
@@ -1324,6 +1328,7 @@ exit_loop:
 		ini_entries_len += sizeof(HARDCODED_INI) - 2;
 	}
 
+	/* 存储ini实体 */
 	sapi_module->ini_entries = ini_entries;
 
 	/* startup after we get the above ini override se we get things right */
@@ -1347,6 +1352,7 @@ exit_loop:
 #ifndef PHP_CLI_WIN32_NO_CONSOLE
 		if (sapi_module == &cli_sapi_module) {
 #endif
+			/* 进入do_cli处理 */
 			exit_status = do_cli(argc, argv);
 #ifndef PHP_CLI_WIN32_NO_CONSOLE
 		} else {

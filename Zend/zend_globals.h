@@ -72,20 +72,20 @@ struct _zend_compiler_globals {
 
 	zend_class_entry *active_class_entry;
 
-	zend_string *compiled_filename;
+	zend_string *compiled_filename;  		 	/* 编译的文件 */
 
-	int zend_lineno;
+	int zend_lineno; 							/* 行号 */
 
 	zend_op_array *active_op_array;
 
-	HashTable *function_table;	/* function symbol table */
-	HashTable *class_table;		/* class table */
+	HashTable *function_table;					/* function symbol table */
+	HashTable *class_table;						/* class table */
 
 	HashTable filenames_table;
 
 	HashTable *auto_globals;
 
-	zend_bool parse_error;
+	zend_bool parse_error;     					 /* 是否有语法解析错误 */
 	zend_bool in_compilation;
 	zend_bool short_tags;
 
