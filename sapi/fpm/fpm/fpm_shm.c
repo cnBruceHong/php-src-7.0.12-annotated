@@ -17,10 +17,12 @@
 
 static size_t fpm_shm_size = 0;
 
+/* 向系统开辟一块共享内存空间，指定了大小size */
 void *fpm_shm_alloc(size_t size) /* {{{ */
 {
 	void *mem;
 
+	/* 调用的是mmap，可读可写 */
 	mem = mmap(0, size, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_SHARED, -1, 0);
 
 #ifdef MAP_FAILED

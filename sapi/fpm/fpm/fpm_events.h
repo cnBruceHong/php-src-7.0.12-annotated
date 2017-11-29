@@ -5,28 +5,30 @@
 #ifndef FPM_EVENTS_H
 #define FPM_EVENTS_H 1
 
-#define FPM_EV_TIMEOUT  (1 << 0)
+#define FPM_EV_TIMEOUT  (1 << 0) // 
 #define FPM_EV_READ     (1 << 1)
 #define FPM_EV_PERSIST  (1 << 2)
-#define FPM_EV_EDGE     (1 << 3)
+#define FPM_EV_EDGE     (1 << 3) // 边缘触发事件
 
 #define fpm_event_set_timer(ev, flags, cb, arg) fpm_event_set((ev), -1, (flags), (cb), (arg))
 
+/* 用于存放一个事件 */
 struct fpm_event_s {
-	int fd;                   /* not set with FPM_EV_TIMEOUT */
-	struct timeval timeout;   /* next time to trigger */
-	struct timeval frequency;
-	void (*callback)(struct fpm_event_s *, short, void *);
+	int fd;                   /* not set with FPM_EV_TIMEOUT */ // 时间代表的fd，也就是监听的fd
+	struct timeval timeout;   /* next time to trigger */ // 下一次触发事件的时间，用于时间事件中
+	struct timeval frequency; // 时间事件的触发频率, 毫秒为单位
+	void (*callback)(struct fpm_event_s *, short, void *); // 时间触发的回调函数
 	void *arg;
 	int flags;
 	int index;                /* index of the fd in the ufds array */
-	short which;              /* type of event */
+	short which;              /* type of event */ // 事件类型
 };
 
+/* 事件队列节点 */
 typedef struct fpm_event_queue_s {
-	struct fpm_event_queue_s *prev;
-	struct fpm_event_queue_s *next;
-	struct fpm_event_s *ev;
+	struct fpm_event_queue_s *prev; // 队列中的上一个事件
+	struct fpm_event_queue_s *next; // 队列中的下一个事件
+	struct fpm_event_s *ev; // 存放事件内容
 } fpm_event_queue;
 
 struct fpm_event_module_s {

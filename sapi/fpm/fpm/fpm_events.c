@@ -42,7 +42,7 @@ static int fpm_event_queue_add(struct fpm_event_queue_s **queue, struct fpm_even
 static int fpm_event_queue_del(struct fpm_event_queue_s **queue, struct fpm_event_s *ev);
 static void fpm_event_queue_destroy(struct fpm_event_queue_s **queue);
 
-static struct fpm_event_module_s *module;
+static struct fpm_event_module_s *module; // 存放进程使用的IO复用类型
 static struct fpm_event_queue_s *fpm_event_queue_timer = NULL;
 static struct fpm_event_queue_s *fpm_event_queue_fd = NULL;
 
@@ -140,19 +140,23 @@ static struct fpm_event_s *fpm_event_queue_isset(struct fpm_event_queue_s *queue
 }
 /* }}} */
 
+/* 添加ev事件到queue队列中 */
 static int fpm_event_queue_add(struct fpm_event_queue_s **queue, struct fpm_event_s *ev) /* {{{ */
 {
-	struct fpm_event_queue_s *elt;
+	struct fpm_event_queue_s *elt; // 起一个临时变量
 
+	/* 空参数你传什么传？ */
 	if (!queue || !ev) {
 		return -1;
 	}
 
+	/* 判断是否已经是添加过了的 */
 	if (fpm_event_queue_isset(*queue, ev)) {
 		return 0;
 	}
 
 	if (!(elt = malloc(sizeof(struct fpm_event_queue_s)))) {
+		/* 内存申请失败 */
 		zlog(ZLOG_SYSERROR, "Unable to add the event to queue: malloc() failed");
 		return -1;
 	}
@@ -161,6 +165,7 @@ static int fpm_event_queue_add(struct fpm_event_queue_s **queue, struct fpm_even
 	elt->ev = ev;
 
 	if (*queue) {
+		/* 如果queue中有事件，添加到列表开头 */
 		(*queue)->prev = elt;
 		elt->next = *queue;
 	}
@@ -234,12 +239,18 @@ static void fpm_event_queue_destroy(struct fpm_event_queue_s **queue) /* {{{ */
 }
 /* }}} */
 
+/* 预初始化事件模型 */
 int fpm_event_pre_init(char *machanism) /* {{{ */
 {
+
+	/**
+	 * 轮流取各个IO模型的实例，如果已经被实例化并且和传入的参数名称一致，赋值给全局变量module
+	 */
+
 	/* kqueue */
-	module = fpm_event_kqueue_module();
+	module = fpm_event_kqueue_module(); 
 	if (module) {
-		if (!machanism || strcasecmp(module->name, machanism) == 0) {
+		if (!machanism || strcasecmp(module->name, machanism) == 0) { 
 			return 0;
 		}
 	}
@@ -343,6 +354,7 @@ int fpm_event_init_main() /* {{{ */
 }
 /* }}} */
 
+/* fpm中master进程的事件循环函数 */
 void fpm_event_loop(int err) /* {{{ */
 {
 	static struct fpm_event_s signal_fd_event;
@@ -482,6 +494,7 @@ int fpm_event_set(struct fpm_event_s *ev, int fd, int flags, void (*callback)(st
 }
 /* }}} */
 
+/* 添加一个读事件或者是一个时间事件到队列中 */
 int fpm_event_add(struct fpm_event_s *ev, unsigned long int frequency) /* {{{ */
 {
 	struct timeval now;
@@ -495,6 +508,7 @@ int fpm_event_add(struct fpm_event_s *ev, unsigned long int frequency) /* {{{ */
 
 	/* it's a triggered event on incoming data */
 	if (ev->flags & FPM_EV_READ) {
+		/* 判断flags是否是read事件，设置了进入这里的流程 */
 		ev->which = FPM_EV_READ;
 		if (fpm_event_queue_add(&fpm_event_queue_fd, ev) != 0) {
 			return -1;
@@ -503,9 +517,9 @@ int fpm_event_add(struct fpm_event_s *ev, unsigned long int frequency) /* {{{ */
 	}
 
 	/* it's a timer event */
-	ev->which = FPM_EV_TIMEOUT;
+	ev->which = FPM_EV_TIMEOUT; // 这是一个时间事件
 
-	fpm_clock_get(&now);
+	fpm_clock_get(&now); 
 	if (frequency >= 1000) {
 		tmp.tv_sec = frequency / 1000;
 		tmp.tv_usec = (frequency % 1000) * 1000;
@@ -514,8 +528,9 @@ int fpm_event_add(struct fpm_event_s *ev, unsigned long int frequency) /* {{{ */
 		tmp.tv_usec = frequency * 1000;
 	}
 	ev->frequency = tmp;
-	fpm_event_set_timeout(ev, now);
+	fpm_event_set_timeout(ev, now); // timeradd(&(now), &(ev)->frequency, &(ev)->timeout); 主要设置了timeout这个属性
 
+	/* 加入队列中 */
 	if (fpm_event_queue_add(&fpm_event_queue_timer, ev) != 0) {
 		return -1;
 	}

@@ -1151,6 +1151,7 @@ int fpm_conf_write_pid() /* {{{ */
 }
 /* }}} */
 
+/* 为每个worker pool分配一个fpm_worker_pool_s */
 static int fpm_conf_post_process(int force_daemon) /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
@@ -1480,6 +1481,7 @@ static void fpm_conf_ini_parser(zval *arg1, zval *arg2, zval *arg3, int callback
 }
 /* }}} */
 
+/* 加载conf文件 */
 int fpm_conf_load_ini_file(char *filename) /* {{{ */
 {
 	int error = 0;
@@ -1660,10 +1662,16 @@ static void fpm_conf_dump() /* {{{ */
 }
 /* }}} */
 
+/**
+ *  解析php-fpm.conf配置，为每个worker pool分配一个fpm_worker_pool_s 
+ * 	test_conf 测试conf
+ *  force_daemon 1 后台 0 前台
+ * */
 int fpm_conf_init_main(int test_conf, int force_daemon) /* {{{ */
 {
 	int ret;
 
+	/* 主要对fpm_globals这个结构赋值 */
 	if (fpm_globals.prefix && *fpm_globals.prefix) {
 		if (!fpm_conf_is_dir(fpm_globals.prefix)) {
 			zlog(ZLOG_ERROR, "the global prefix '%s' does not exist or is not a directory", fpm_globals.prefix);
@@ -1676,9 +1684,11 @@ int fpm_conf_init_main(int test_conf, int force_daemon) /* {{{ */
 	}
 
 	if (fpm_globals.config == NULL) {
+		/* 没有指定的config路径 */
 		char *tmp;
 
 		if (fpm_globals.prefix == NULL) {
+			/* 连安装路径都没指定 */
 			spprintf(&tmp, 0, "%s/php-fpm.conf", PHP_SYSCONFDIR);
 		} else {
 			spprintf(&tmp, 0, "%s/etc/php-fpm.conf", fpm_globals.prefix);
@@ -1698,6 +1708,7 @@ int fpm_conf_init_main(int test_conf, int force_daemon) /* {{{ */
 		}
 	}
 
+	/* 加载conf文件 */
 	ret = fpm_conf_load_ini_file(fpm_globals.config);
 
 	if (0 > ret) {
@@ -1712,7 +1723,7 @@ int fpm_conf_init_main(int test_conf, int force_daemon) /* {{{ */
 
 	if (test_conf) {
 		if (test_conf > 1) {
-			fpm_conf_dump();
+			fpm_conf_dump(); // 调试输出
 		}
 		zlog(ZLOG_NOTICE, "configuration file %s test is successful\n", fpm_globals.config);
 		fpm_globals.test_successful = 1;

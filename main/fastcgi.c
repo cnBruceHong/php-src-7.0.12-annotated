@@ -246,15 +246,15 @@ typedef union _sa_t {
 	struct sockaddr_in6 sa_inet6;
 } sa_t;
 
-static HashTable fcgi_mgmt_vars;
+static HashTable fcgi_mgmt_vars; // 存放fcgi的变量
 
-static int is_initialized = 0;
-static int is_fastcgi = 0;
-static int in_shutdown = 0;
+static int is_initialized = 0; // 标记是否已经初始化完成
+static int is_fastcgi = 0;  // 标记是否是fastcgi
+static int in_shutdown = 0; // 记录fastcgi的关闭状态
 static sa_t *allowed_clients = NULL;
 static sa_t client_sa;
 
-/* hash table */
+/* hash table，初始化哈希表 */
 static void fcgi_hash_init(fcgi_hash *h)
 {
 	memset(h->hash_table, 0, sizeof(h->hash_table));
@@ -268,6 +268,7 @@ static void fcgi_hash_init(fcgi_hash *h)
 	h->data->next = NULL;
 }
 
+/* 释放哈希表 */
 static void fcgi_hash_destroy(fcgi_hash *h)
 {
 	fcgi_hash_buckets *b;
@@ -426,13 +427,16 @@ static DWORD WINAPI fcgi_shutdown_thread(LPVOID arg)
 
 #else
 
+/* 信号处理函数 */
 static void fcgi_signal_handler(int signo)
 {
 	if (signo == SIGUSR1 || signo == SIGTERM) {
+		/* 接收到用户自定义信号或者是终止信号，标记in_shutdown=1 */
 		in_shutdown = 1;
 	}
 }
 
+/* 安装信号处理机制 */
 static void fcgi_setup_signals(void)
 {
 	struct sigaction new_sa, old_sa;
@@ -449,16 +453,19 @@ static void fcgi_setup_signals(void)
 }
 #endif
 
+/* 传入value设置in_shutdown状态 */
 void fcgi_set_in_shutdown(int new_value)
 {
 	in_shutdown = new_value;
 }
 
+/* 获取in_shutdown状态 */
 int fcgi_in_shutdown(void)
 {
 	return in_shutdown;
 }
 
+/* 标记fcgi终止 */
 void fcgi_terminate(void)
 {
 	in_shutdown = 1;
@@ -478,17 +485,20 @@ void __attribute__((weak)) fcgi_log(int type, const char *format, ...) {
 }
 #endif
 
+/* fcgi协议初始化 */
 int fcgi_init(void)
 {
 	if (!is_initialized) {
+		/* 没有初始化，开始进行初始化 */
 #ifndef _WIN32
 		sa_t sa;
 		socklen_t len = sizeof(sa);
 #endif
 		zend_hash_init(&fcgi_mgmt_vars, 8, NULL, fcgi_free_mgmt_var_cb, 1);
+		/* 将 FCGI_MPXS_CONNS 设置为0  */
 		fcgi_set_mgmt_var("FCGI_MPXS_CONNS", sizeof("FCGI_MPXS_CONNS")-1, "0", sizeof("0")-1);
 
-		is_initialized = 1;
+		is_initialized = 1; // 标记初始化完毕
 #ifdef _WIN32
 # if 0
 		/* TODO: Support for TCP sockets */
@@ -499,6 +509,7 @@ int fcgi_init(void)
 			return 0;
 		}
 # endif
+		/* win32处理的，不用管 */
 		if ((GetStdHandle(STD_OUTPUT_HANDLE) == INVALID_HANDLE_VALUE) &&
 		    (GetStdHandle(STD_ERROR_HANDLE)  == INVALID_HANDLE_VALUE) &&
 		    (GetStdHandle(STD_INPUT_HANDLE)  != INVALID_HANDLE_VALUE)) {
@@ -532,7 +543,8 @@ int fcgi_init(void)
 		}
 #else
 		errno = 0;
-		if (getpeername(0, (struct sockaddr *)&sa, &len) != 0 && errno == ENOTCONN) {
+		/* 判断是fastcgi还是cgi协议 */
+		if (getpeername(0 (struct sockaddr *)&sa, &len) != 0 && errno == ENOTCONN) {
 			fcgi_setup_signals();
 			return is_fastcgi = 1;
 		} else {
@@ -540,10 +552,11 @@ int fcgi_init(void)
 		}
 #endif
 	}
-	return is_fastcgi;
+	return is_fastcgi; // 返回完成状态
 }
 
 
+/* 获取是否使用了fastcgi协议 */
 int fcgi_is_fastcgi(void)
 {
 	if (!is_initialized) {
@@ -1727,6 +1740,7 @@ void fcgi_set_mgmt_var(const char * name, size_t name_len, const char * value, s
 	zend_hash_str_add(&fcgi_mgmt_vars, name, name_len, &zvalue);
 }
 
+/* zval的析构函数 */
 void fcgi_free_mgmt_var_cb(zval *zv)
 {
 	pefree(Z_STR_P(zv), 1);

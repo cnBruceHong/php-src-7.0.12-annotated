@@ -205,6 +205,7 @@ void fpm_php_soft_quit() /* {{{ */
 }
 /* }}} */
 
+/* 初始化fpm */
 int fpm_php_init_main() /* {{{ */
 {
 	if (0 > fpm_cleanup_add(FPM_CLEANUP_PARENT, fpm_php_cleanup, 0)) {

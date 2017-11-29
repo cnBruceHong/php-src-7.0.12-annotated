@@ -45,6 +45,7 @@ static void fpm_systemd() /* {{{ */
 }
 /* }}} */
 
+/* 配置系统心跳 */
 void fpm_systemd_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	static struct fpm_event_s heartbeat;
@@ -54,6 +55,7 @@ void fpm_systemd_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{
 	}
 
 	if (which == FPM_EV_TIMEOUT) {
+		/* 如果是一个时间事件，配置时间间隔 */
 		fpm_systemd();
 
 		return;
@@ -79,6 +81,7 @@ void fpm_systemd_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{
 }
 /* }}} */
 
+/* 配置系统心跳检查事件间隔，考虑有watchdog的情况 */
 int fpm_systemd_conf() /* {{{ */
 {
 	char *watchdog;
@@ -92,6 +95,7 @@ int fpm_systemd_conf() /* {{{ */
 	}
 
 	if (interval > 1000) {
+		/* 使用看门狗的 */
 		if (fpm_global_config.systemd_interval > 0) {
 			zlog(ZLOG_WARNING, "systemd_interval option ignored");
 		}
@@ -101,10 +105,12 @@ int fpm_systemd_conf() /* {{{ */
 
 	} else if (fpm_global_config.systemd_interval < 0) {
 		/* not set => default value */
+		/* 没有设置的话设置一个默认值10000 */
 		fpm_global_config.systemd_interval = FPM_SYSTEMD_DEFAULT_HEARTBEAT;
 
 	} else {
 		/* sec to msec */
+		/* 小于1000的都认为单位是秒，需要把秒转成毫秒 */
 		fpm_global_config.systemd_interval *= 1000;
 	}
 	return 0;

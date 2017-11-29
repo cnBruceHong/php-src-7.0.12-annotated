@@ -18,6 +18,7 @@ enum fpm_address_domain {
 	FPM_AF_INET = 2
 };
 
+/* fpm服务池，也就一个链表。我们知道可以通过在fpm配置中配置多个pool，监听多个端口 */
 struct fpm_worker_pool_s {
 	struct fpm_worker_pool_s *next;
 	struct fpm_worker_pool_config_s *config;

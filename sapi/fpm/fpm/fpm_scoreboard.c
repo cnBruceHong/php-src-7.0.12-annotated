@@ -22,6 +22,7 @@ static float fpm_scoreboard_tick;
 #endif
 
 
+/* 分配用于记录worker进程运行信息的结构，这个结构在共享内存上,master通过这个结构与子进程通信 */
 int fpm_scoreboard_init_main() /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
@@ -41,11 +42,13 @@ int fpm_scoreboard_init_main() /* {{{ */
 #endif /* HAVE_TIMES */
 
 
+	/* 轮流取出fpm_worker_pool_s来检查 */
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
 		size_t scoreboard_size, scoreboard_nprocs_size;
 		void *shm_mem;
 
 		if (wp->config->pm_max_children < 1) {
+			/* 没有配置子进程你通信个啥？ */
 			zlog(ZLOG_ERROR, "[pool %s] Unable to create scoreboard SHM because max_client is not set", wp->config->name);
 			return -1;
 		}
@@ -57,12 +60,12 @@ int fpm_scoreboard_init_main() /* {{{ */
 
 		scoreboard_size        = sizeof(struct fpm_scoreboard_s) + (wp->config->pm_max_children) * sizeof(struct fpm_scoreboard_proc_s *);
 		scoreboard_nprocs_size = sizeof(struct fpm_scoreboard_proc_s) * wp->config->pm_max_children;
-		shm_mem                = fpm_shm_alloc(scoreboard_size + scoreboard_nprocs_size);
+		shm_mem                = fpm_shm_alloc(scoreboard_size + scoreboard_nprocs_size); // 开辟一块shm空间
 
 		if (!shm_mem) {
-			return -1;
+			return -1; // 申请失败
 		}
-		wp->scoreboard         = shm_mem;
+		wp->scoreboard         = shm_mem; // 保存起来
 		wp->scoreboard->nprocs = wp->config->pm_max_children;
 		shm_mem               += scoreboard_size;
 

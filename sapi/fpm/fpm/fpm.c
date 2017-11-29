@@ -23,6 +23,7 @@
 #include "fpm_log.h"
 #include "zlog.h"
 
+/* fpm 全局变量实例 */
 struct fpm_globals_s fpm_globals = {
 	.parent_pid = 0,
 	.argc = 0,
@@ -58,9 +59,9 @@ int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int t
 
 	if (0 > fpm_php_init_main()           ||
 	    0 > fpm_stdio_init_main()         ||
-	    0 > fpm_conf_init_main(test_conf, force_daemon) ||
+	    0 > fpm_conf_init_main(test_conf, force_daemon) || // 解析php-fpm.conf配置，为每个worker pool分配一个fpm_worker_pool_s
 	    0 > fpm_unix_init_main()          ||
-	    0 > fpm_scoreboard_init_main()    ||
+	    0 > fpm_scoreboard_init_main()    || // 分配用于记录worker进程运行信息的结构，这个结构在共享内存上
 	    0 > fpm_pctl_init_main()          ||
 	    0 > fpm_env_init_main()           ||
 	    0 > fpm_signals_init_main()       ||
@@ -91,30 +92,36 @@ int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int t
 
 /*	children: return listening socket
 	parent: never return */
+/* 子进程会返回监听的socket，父进程会进入事件循环，不会返回 */
 int fpm_run(int *max_requests) /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
 
 	/* create initial children in all pools */
+	/* 把所有fpm池的子进程全部初始化 */
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
 		int is_parent;
 
 		is_parent = fpm_children_create_initial(wp);
 
 		if (!is_parent) {
+			/* 子进程跳去执行部分 */
 			goto run_child;
 		}
 
 		/* handle error */
 		if (is_parent == 2) {
+			/* 错误处理 */
 			fpm_pctl(FPM_PCTL_STATE_TERMINATING, FPM_PCTL_ACTION_SET);
 			fpm_event_loop(1);
 		}
 	}
 
 	/* run event loop forever */
+	/* 继续时间循环 */
 	fpm_event_loop(0);
 
+/* 下面是worker处理的程序 */
 run_child: /* only workers reach this point */
 
 	fpm_cleanups_run(FPM_CLEANUP_CHILD);

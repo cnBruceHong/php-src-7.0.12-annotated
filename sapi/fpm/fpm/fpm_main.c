@@ -1617,7 +1617,7 @@ int main(int argc, char *argv[])
 	zend_signal_startup();
 #endif
 
-	sapi_startup(&cgi_sapi_module);
+	sapi_startup(&cgi_sapi_module); // 注册SAPI，将全局变量sapi_module设置为cgi_sapi_module
 	cgi_sapi_module.php_ini_path_override = NULL;
 	cgi_sapi_module.php_ini_ignore_cwd = 1;
 
@@ -1625,7 +1625,7 @@ int main(int argc, char *argv[])
 	fcgi_set_logger(fpm_fcgi_log);
 #endif
 
-	fcgi_init();
+	fcgi_init(); // 初始化fcgi，主要是初始化信号处理器和判断协议类型
 
 #ifdef PHP_WIN32
 	_fmode = _O_BINARY; /* sets default for file streams to binary */
@@ -1634,6 +1634,7 @@ int main(int argc, char *argv[])
 	setmode(_fileno(stderr), O_BINARY);	/* make the stdio mode be binary */
 #endif
 
+	/* 处理参数 */
 	while ((c = php_getopt(argc, argv, OPTIONS, &php_optarg, &php_optind, 0, 2)) != -1) {
 		switch (c) {
 			case 'c':
@@ -1723,10 +1724,12 @@ int main(int argc, char *argv[])
 				break;
 
 			case 'D': /* daemonize */
+				/* 使用后台进程 */
 				force_daemon = 1;
 				break;
 
 			case 'F': /* nodaemonize */
+				/* 前台运行 */
 				force_daemon = 0;
 				break;
 
@@ -1770,6 +1773,7 @@ int main(int argc, char *argv[])
 	}
 
 	if (php_information) {
+		/* 处理了-i参数的 */
 		cgi_sapi_module.phpinfo_as_text = 1;
 		cgi_sapi_module.startup(&cgi_sapi_module);
 		if (php_request_startup() == FAILURE) {
@@ -1810,6 +1814,7 @@ int main(int argc, char *argv[])
 	cgi_sapi_module.executable_location = argv[0];
 
 	/* startup after we get the above ini override se we get things right */
+	/* 执行php_module_startup */
 	if (cgi_sapi_module.startup(&cgi_sapi_module) == FAILURE) {
 #ifdef ZTS
 		tsrm_shutdown();
@@ -1861,6 +1866,11 @@ consult the installation file that came with this distribution, or visit \n\
 		}
 	}
 
+	/**
+	 * fpm初始化
+	 * fpm_config 是否指定了fpm-php.conf的路径 没有的话用 php_cgi_globals.fpm_config
+	 * 
+	 *  */
 	if (0 > fpm_init(argc, argv, fpm_config ? fpm_config : CGIG(fpm_config), fpm_prefix, fpm_pid, test_conf, php_allow_to_run_as_root, force_daemon, force_stderr)) {
 
 		if (fpm_globals.send_config_pipe[1]) {
@@ -1878,9 +1888,10 @@ consult the installation file that came with this distribution, or visit \n\
 		write(fpm_globals.send_config_pipe[1], &writeval, sizeof(writeval));
 		close(fpm_globals.send_config_pipe[1]);
 	}
-	fpm_is_running = 1;
-
-	fcgi_fd = fpm_run(&max_requests);
+	fpm_is_running = 1; // 标记fpm已经启动
+	/* 启动fpm，只有子进程会返回socket */
+	fcgi_fd = fpm_run(&max_requests); // fcgi_fd就是子进程监听的socket
+	/* 下面开始是worker的 */
 	parent = 0;
 
 	/* onced forked tell zlog to also send messages through sapi_cgi_log_fastcgi() */

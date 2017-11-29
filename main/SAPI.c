@@ -53,9 +53,10 @@ sapi_globals_struct sapi_globals; /* 申明全局的一个SAPI变量 */
 
 static void _type_dtor(zval *zv)
 {
-	free(Z_PTR_P(zv));
+	free(Z_PTR_P(zv)); // (*zval).value.ptr
 }
 
+/* 设置全局变量sapi_globals */
 static void sapi_globals_ctor(sapi_globals_struct *sapi_globals)
 {
 #ifdef ZTS
@@ -66,6 +67,7 @@ static void sapi_globals_ctor(sapi_globals_struct *sapi_globals)
 	php_setup_sapi_content_types();
 }
 
+/* 释放掉全局变量sapi_globals */
 static void sapi_globals_dtor(sapi_globals_struct *sapi_globals)
 {
 	zend_hash_destroy(&sapi_globals->known_post_content_types);
