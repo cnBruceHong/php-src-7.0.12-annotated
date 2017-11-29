@@ -254,6 +254,7 @@ int fpm_unix_free_socket_premissions(struct fpm_worker_pool_s *wp) /* {{{ */
 }
 /* }}} */
 
+/* 改变wp的一些unix属性 */
 static int fpm_unix_conf_wp(struct fpm_worker_pool_s *wp) /* {{{ */
 {
 	struct passwd *pwd;
@@ -261,7 +262,7 @@ static int fpm_unix_conf_wp(struct fpm_worker_pool_s *wp) /* {{{ */
 
 	if (is_root) {
 		if (wp->config->user && *wp->config->user) {
-			if (strlen(wp->config->user) == strspn(wp->config->user, "0123456789")) {
+			if (strlen(wp->config->user) == strspn(wp->config->user, "0123456789")) { // 检查字符串是不是全部都是数字
 				wp->set_uid = strtoul(wp->config->user, 0, 10);
 			} else {
 				struct passwd *pwd;
@@ -272,11 +273,11 @@ static int fpm_unix_conf_wp(struct fpm_worker_pool_s *wp) /* {{{ */
 					return -1;
 				}
 
-				wp->set_uid = pwd->pw_uid;
-				wp->set_gid = pwd->pw_gid;
+				wp->set_uid = pwd->pw_uid; // 设置uid
+				wp->set_gid = pwd->pw_gid; // 设置gid
 
-				wp->user = strdup(pwd->pw_name);
-				wp->home = strdup(pwd->pw_dir);
+				wp->user = strdup(pwd->pw_name); // 设置用户名称
+				wp->home = strdup(pwd->pw_dir); // 设置家目录
 			}
 		}
 
@@ -444,9 +445,9 @@ int fpm_unix_init_child(struct fpm_worker_pool_s *wp) /* {{{ */
 int fpm_unix_init_main() /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
-	int is_root = !geteuid();
+	int is_root = !geteuid(); // 判断有效用户是不是root
 
-	if (fpm_global_config.rlimit_files) {
+	if (fpm_global_config.rlimit_files) { // 软限制的文件打开数量
 		struct rlimit r;
 
 		r.rlim_max = r.rlim_cur = (rlim_t) fpm_global_config.rlimit_files;
@@ -468,7 +469,7 @@ int fpm_unix_init_main() /* {{{ */
 		}
 	}
 
-	fpm_pagesize = getpagesize();
+	fpm_pagesize = getpagesize(); // 获取内存页大小
 	if (fpm_global_config.daemonize) {
 		/*
 		 * If daemonize, the calling process will die soon
@@ -518,7 +519,7 @@ int fpm_unix_init_main() /* {{{ */
 				tv.tv_usec = 0;
 
 				zlog(ZLOG_DEBUG, "The calling process is waiting for the master process to ping via fd=%d", fpm_globals.send_config_pipe[0]);
-				ret = select(fpm_globals.send_config_pipe[0] + 1, &rfds, NULL, NULL, &tv);
+				ret = select(fpm_globals.send_config_pipe[0] + 1, &rfds, NULL, NULL, &tv); // 监听读事件
 				if (ret == -1) {
 					zlog(ZLOG_SYSERROR, "failed to select");
 					exit(FPM_EXIT_SOFTWARE);
@@ -536,6 +537,7 @@ int fpm_unix_init_main() /* {{{ */
 						exit(FPM_EXIT_SOFTWARE);
 					} else {
 						if (readval == 1) {
+							/* fork出来的master进程正常了，本进程可以退出 */
 							zlog(ZLOG_DEBUG, "I received a valid acknoledge from the master process, I can exit without error");
 							fpm_cleanups_run(FPM_CLEANUP_PARENT_EXIT);
 							exit(FPM_EXIT_OK);
@@ -553,6 +555,7 @@ int fpm_unix_init_main() /* {{{ */
 	}
 
 	/* continue as a child */
+	/* fork出来的进程开始执行 */
 	setsid();
 	if (0 > fpm_clock_init()) {
 		return -1;
@@ -569,7 +572,7 @@ int fpm_unix_init_main() /* {{{ */
 		}
 	}
 
-	fpm_globals.parent_pid = getpid();
+	fpm_globals.parent_pid = getpid(); // 用新fork的pid作为master pid
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
 		if (0 > fpm_unix_conf_wp(wp)) {
 			return -1;

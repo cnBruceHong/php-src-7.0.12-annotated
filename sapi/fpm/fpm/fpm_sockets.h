@@ -28,20 +28,21 @@ int fpm_socket_get_listening_queue(int sock, unsigned *cur_lq, unsigned *max_lq)
 int fpm_socket_unix_test_connect(struct sockaddr_un *sock, size_t socklen);
 
 
+/* 设置fd的阻塞模型 */
 static inline int fd_set_blocked(int fd, int blocked) /* {{{ */
 {
-	int flags = fcntl(fd, F_GETFL);
+	int flags = fcntl(fd, F_GETFL); // 获取fd的文件属性
 
 	if (flags < 0) {
 		return -1;
 	}
 
 	if (blocked) {
-		flags &= ~O_NONBLOCK;
+		flags &= ~O_NONBLOCK; // 阻塞
 	} else {
-		flags |= O_NONBLOCK;
+		flags |= O_NONBLOCK; // 非阻塞
 	}
-	return fcntl(fd, F_SETFL, flags);
+	return fcntl(fd, F_SETFL, flags); // 重新设置文件属性
 }
 /* }}} */
 

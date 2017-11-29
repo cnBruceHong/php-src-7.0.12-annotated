@@ -160,6 +160,7 @@ static int fpm_sockets_hash_op(int sock, struct sockaddr *sa, char *key, int typ
 }
 /* }}} */
 
+/* 创建新的监听socket */
 static int fpm_sockets_new_listening_socket(struct fpm_worker_pool_s *wp, struct sockaddr *sa, int socklen) /* {{{ */
 {
 	int flags = 1;
@@ -246,11 +247,12 @@ enum fpm_address_domain fpm_sockets_domain_from_address(char *address) /* {{{ */
 }
 /* }}} */
 
+/*  */
 static int fpm_socket_af_inet_listening_socket(struct fpm_worker_pool_s *wp) /* {{{ */
 {
 	struct addrinfo hints, *servinfo, *p;
-	char *dup_address = strdup(wp->config->listen_address);
-	char *port_str = strrchr(dup_address, ':');
+	char *dup_address = strdup(wp->config->listen_address); // 监听地址
+	char *port_str = strrchr(dup_address, ':'); // 端口
 	char *addr = NULL;
 	char tmpbuf[INET6_ADDRSTRLEN];
 	int addr_len;
@@ -320,6 +322,7 @@ static int fpm_socket_af_unix_listening_socket(struct fpm_worker_pool_s *wp) /* 
 }
 /* }}} */
 
+/* 为每个fpm_worker_pool创建socket */
 int fpm_sockets_init_main() /* {{{ */
 {
 	unsigned i, lq_len;
@@ -359,12 +362,13 @@ int fpm_sockets_init_main() /* {{{ */
 
 	/* create all required sockets */
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
+		/* 循环，为每个wp创建socket */
 		switch (wp->listen_address_domain) {
-			case FPM_AF_INET :
+			case FPM_AF_INET : // IP
 				wp->listening_socket = fpm_socket_af_inet_listening_socket(wp);
 				break;
 
-			case FPM_AF_UNIX :
+			case FPM_AF_UNIX : // Unix domain socket
 				if (0 > fpm_unix_resolve_socket_premissions(wp)) {
 					return -1;
 				}

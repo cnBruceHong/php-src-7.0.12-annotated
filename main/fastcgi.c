@@ -544,7 +544,7 @@ int fcgi_init(void)
 #else
 		errno = 0;
 		/* 判断是fastcgi还是cgi协议 */
-		if (getpeername(0 (struct sockaddr *)&sa, &len) != 0 && errno == ENOTCONN) {
+		if (getpeername(0, (struct sockaddr *)&sa, &len) != 0 && errno == ENOTCONN) {
 			fcgi_setup_signals();
 			return is_fastcgi = 1;
 		} else {

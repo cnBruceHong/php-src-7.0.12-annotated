@@ -60,17 +60,22 @@ int fpm_scoreboard_init_main() /* {{{ */
 
 		scoreboard_size        = sizeof(struct fpm_scoreboard_s) + (wp->config->pm_max_children) * sizeof(struct fpm_scoreboard_proc_s *);
 		scoreboard_nprocs_size = sizeof(struct fpm_scoreboard_proc_s) * wp->config->pm_max_children;
-		shm_mem                = fpm_shm_alloc(scoreboard_size + scoreboard_nprocs_size); // 开辟一块shm空间
+		shm_mem                = fpm_shm_alloc(scoreboard_size + scoreboard_nprocs_size); // 开辟一块shm空间，相当于申请一块内存给shm_mem
 
 		if (!shm_mem) {
 			return -1; // 申请失败
 		}
-		wp->scoreboard         = shm_mem; // 保存起来
-		wp->scoreboard->nprocs = wp->config->pm_max_children;
+		wp->scoreboard         = shm_mem; // 共享空间地址保存起来
+		wp->scoreboard->nprocs = wp->config->pm_max_children; // 保存子进程数量
 		shm_mem               += scoreboard_size;
 
+		//  ┏━━━━━━━━━━━━━━━━━┳━━━━━━━━━━━━━━━━━━━━━━━┓━━━━━━ ...
+		//  ┃ scoreboard_size ┃ fpm_scoreboard_proc_s ┃ 	.....
+		//  ┗━━━━━━━━━━━━━━━━━┻━━━━━━━━━━━━━━━━━━━━━━━┛━━━━━━ ...
+
 		for (i = 0; i < wp->scoreboard->nprocs; i++, shm_mem += sizeof(struct fpm_scoreboard_proc_s)) {
-			wp->scoreboard->procs[i] = shm_mem;
+			/* shm_mem记录了内存地址偏移后的起始地址 */
+			wp->scoreboard->procs[i] = shm_mem; // 每个子进程都和这块共享内存空间关联起来，存放在procs中
 		}
 
 		wp->scoreboard->pm          = wp->config->pm;

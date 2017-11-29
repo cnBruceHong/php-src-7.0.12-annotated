@@ -1207,6 +1207,7 @@ static int fpm_conf_post_process(int force_daemon) /* {{{ */
 		return -1;
 	}
 
+	/* 决定使用什么事件模型机制 */
 	if (0 > fpm_event_pre_init(fpm_global_config.events_mechanism)) {
 		return -1;
 	}

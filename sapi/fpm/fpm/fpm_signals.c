@@ -153,6 +153,7 @@ static void sig_soft_quit(int signo) /* {{{ */
 }
 /* }}} */
 
+/* master进程收到信号会通过 */
 static void sig_handler(int signo) /* {{{ */
 {
 	static const char sig_chars[NSIG + 1] = {
@@ -167,6 +168,7 @@ static void sig_handler(int signo) /* {{{ */
 	int saved_errno;
 
 	if (fpm_globals.parent_pid != getpid()) {
+		/* 子进程不处理 */
 		/* prevent a signal race condition when child process
 			have not set up it's own signal handler yet */
 		return;
@@ -174,21 +176,23 @@ static void sig_handler(int signo) /* {{{ */
 
 	saved_errno = errno;
 	s = sig_chars[signo];
-	write(sp[1], &s, sizeof(s));
+	write(sp[1], &s, sizeof(s)); // 将对应的编码写入管道sp1
 	errno = saved_errno;
 }
 /* }}} */
 
+/* 创建管道和安置信号处理 */
 int fpm_signals_init_main() /* {{{ */
 {
 	struct sigaction act;
 
+	/* 创建一个全双工管道 */
 	if (0 > socketpair(AF_UNIX, SOCK_STREAM, 0, sp)) {
 		zlog(ZLOG_SYSERROR, "failed to init signals: socketpair()");
 		return -1;
 	}
 
-	if (0 > fd_set_blocked(sp[0], 0) || 0 > fd_set_blocked(sp[1], 0)) {
+	if (0 > fd_set_blocked(sp[0], 0) || 0 > fd_set_blocked(sp[1], 0)) { // 两个管道都不阻塞
 		zlog(ZLOG_SYSERROR, "failed to init signals: fd_set_blocked()");
 		return -1;
 	}
@@ -199,9 +203,10 @@ int fpm_signals_init_main() /* {{{ */
 	}
 
 	memset(&act, 0, sizeof(act));
-	act.sa_handler = sig_handler;
+	act.sa_handler = sig_handler; // 信号处理函数
 	sigfillset(&act.sa_mask);
 
+	/* 安置函数 */
 	if (0 > sigaction(SIGTERM,  &act, 0) ||
 	    0 > sigaction(SIGINT,   &act, 0) ||
 	    0 > sigaction(SIGUSR1,  &act, 0) ||

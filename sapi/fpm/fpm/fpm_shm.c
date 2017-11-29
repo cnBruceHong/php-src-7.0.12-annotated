@@ -15,7 +15,7 @@
 #define MAP_ANONYMOUS MAP_ANON
 #endif
 
-static size_t fpm_shm_size = 0;
+static size_t fpm_shm_size = 0; // 记录已经申请的共享空间大小
 
 /* 向系统开辟一块共享内存空间，指定了大小size */
 void *fpm_shm_alloc(size_t size) /* {{{ */
@@ -42,14 +42,16 @@ void *fpm_shm_alloc(size_t size) /* {{{ */
 }
 /* }}} */
 
+/* 释放共享内存空间 */
 int fpm_shm_free(void *mem, size_t size) /* {{{ */
 {
 	if (!mem) {
+		/* 没有空间内存你释放干啥子？ */
 		zlog(ZLOG_ERROR, "mem is NULL");
 		return 0;
 	}
 
-	if (munmap(mem, size) == -1) {
+	if (munmap(mem, size) == -1) { // 调用munmap释放
 		zlog(ZLOG_SYSERROR, "Unable to free shm");
 		return 0;
 	}
@@ -64,6 +66,7 @@ int fpm_shm_free(void *mem, size_t size) /* {{{ */
 }
 /* }}} */
 
+/* 获取已经申请的共享内存大小 */
 size_t fpm_shm_get_size_allocated() /* {{{*/
 {
 	return fpm_shm_size;

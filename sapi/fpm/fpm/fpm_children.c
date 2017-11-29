@@ -358,6 +358,7 @@ static void fpm_parent_resources_use(struct fpm_child_s *child) /* {{{ */
 }
 /* }}} */
 
+/* 创建worker进程 */
 int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to_spawn, int is_debug) /* {{{ */
 {
 	pid_t pid;
@@ -366,18 +367,21 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 	static int warned = 0;
 
 	if (wp->config->pm == PM_STYLE_DYNAMIC) {
+		/* 动态 */
 		if (!in_event_loop) { /* starting */
 			max = wp->config->pm_start_servers;
 		} else {
-			max = wp->running_children + nb_to_spawn;
+			max = wp->running_children + nb_to_spawn; // 当前运行的+需要新增的
 		}
 	} else if (wp->config->pm == PM_STYLE_ONDEMAND) {
+		/* 按需 */
 		if (!in_event_loop) { /* starting */
 			max = 0; /* do not create any child at startup */
 		} else {
 			max = wp->running_children + nb_to_spawn;
 		}
 	} else { /* PM_STYLE_STATIC */
+		/* 静态 */
 		max = wp->config->pm_max_children;
 	}
 
@@ -436,6 +440,7 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 int fpm_children_create_initial(struct fpm_worker_pool_s *wp) /* {{{ */
 {
 	if (wp->config->pm == PM_STYLE_ONDEMAND) {
+		/* 如果master的管理模式是按需模型 */
 		wp->ondemand_event = (struct fpm_event_s *)malloc(sizeof(struct fpm_event_s));
 
 		if (!wp->ondemand_event) {

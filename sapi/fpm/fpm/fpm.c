@@ -60,13 +60,13 @@ int fpm_init(int argc, char **argv, char *config, char *prefix, char *pid, int t
 	if (0 > fpm_php_init_main()           ||
 	    0 > fpm_stdio_init_main()         ||
 	    0 > fpm_conf_init_main(test_conf, force_daemon) || // 解析php-fpm.conf配置，为每个worker pool分配一个fpm_worker_pool_s
-	    0 > fpm_unix_init_main()          ||
+	    0 > fpm_unix_init_main()          || // 变为后台进程
 	    0 > fpm_scoreboard_init_main()    || // 分配用于记录worker进程运行信息的结构，这个结构在共享内存上
 	    0 > fpm_pctl_init_main()          ||
 	    0 > fpm_env_init_main()           ||
-	    0 > fpm_signals_init_main()       ||
+	    0 > fpm_signals_init_main()       || // 会创建管道
 	    0 > fpm_children_init_main()      ||
-	    0 > fpm_sockets_init_main()       ||
+	    0 > fpm_sockets_init_main()       || // 为每个worker_pool创建socket
 	    0 > fpm_worker_pool_init_main()   ||
 	    0 > fpm_event_init_main()) {
 
@@ -102,7 +102,7 @@ int fpm_run(int *max_requests) /* {{{ */
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
 		int is_parent;
 
-		is_parent = fpm_children_create_initial(wp);
+		is_parent = fpm_children_create_initial(wp); // 创建worker进程
 
 		if (!is_parent) {
 			/* 子进程跳去执行部分 */
@@ -118,7 +118,7 @@ int fpm_run(int *max_requests) /* {{{ */
 	}
 
 	/* run event loop forever */
-	/* 继续时间循环 */
+	/* 进入master进程的事件循坏 */
 	fpm_event_loop(0);
 
 /* 下面是worker处理的程序 */

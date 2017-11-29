@@ -17,6 +17,7 @@
 #define FPM_SCOREBOARD_ACTION_SET 0
 #define FPM_SCOREBOARD_ACTION_INC 1
 
+/* 子进程共享内存结构体 */
 struct fpm_scoreboard_proc_s {
 	union {
 		atomic_t lock;

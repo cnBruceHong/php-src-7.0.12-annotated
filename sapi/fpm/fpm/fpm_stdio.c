@@ -32,6 +32,7 @@ int fpm_stdio_init_main() /* {{{ */
 		return -1;
 	}
 
+	/* 将输出输出导向/dev/null */
 	if (0 > dup2(fd, STDIN_FILENO) || 0 > dup2(fd, STDOUT_FILENO)) {
 		zlog(ZLOG_SYSERROR, "failed to init stdio: dup2()");
 		close(fd);

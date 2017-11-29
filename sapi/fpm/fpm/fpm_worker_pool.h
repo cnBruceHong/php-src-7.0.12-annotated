@@ -24,19 +24,19 @@ struct fpm_worker_pool_s {
 	struct fpm_worker_pool_config_s *config;
 	char *user, *home;									/* for setting env USER and HOME */
 	enum fpm_address_domain listen_address_domain;
-	int listening_socket;
+	int listening_socket; // 监听的socket
 	int set_uid, set_gid;								/* config uid and gid */
 	int socket_uid, socket_gid, socket_mode;
 
 	/* runtime */
-	struct fpm_child_s *children;
-	int running_children;
+	struct fpm_child_s *children; // 子进程列表
+	int running_children; // 当前worker总数
 	int idle_spawn_rate;
 	int warn_max_children;
 #if 0
 	int warn_lq;
 #endif
-	struct fpm_scoreboard_s *scoreboard;
+	struct fpm_scoreboard_s *scoreboard; // 共享内存相关，用于记录子进程一些状态信息
 	int log_fd;
 	char **limit_extensions;
 

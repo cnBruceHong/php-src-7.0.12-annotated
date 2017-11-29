@@ -1883,6 +1883,7 @@ consult the installation file that came with this distribution, or visit \n\
 	}
 
 	if (fpm_globals.send_config_pipe[1]) {
+		/* 成功变为后台进程后发送信号给父进程，父进程关闭 */
 		int writeval = 1;
 		zlog(ZLOG_DEBUG, "Sending \"1\" (OK) to parent via fd=%d", fpm_globals.send_config_pipe[1]);
 		write(fpm_globals.send_config_pipe[1], &writeval, sizeof(writeval));
@@ -1902,6 +1903,7 @@ consult the installation file that came with this distribution, or visit \n\
 	php_import_environment_variables = cgi_php_import_environment_variables;
 
 	/* library is already initialized, now init our request */
+	/* 开始初始化请求 */
 	request = fpm_init_request(fcgi_fd);
 
 	zend_first_try {
