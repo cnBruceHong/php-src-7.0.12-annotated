@@ -129,21 +129,22 @@ typedef struct _zend_trait_alias {
 } zend_trait_alias;
 
 struct _zend_class_entry {
-	char type;
-	zend_string *name;
-	struct _zend_class_entry *parent;
-	int refcount;
-	uint32_t ce_flags;
+	char type; 
+	zend_string *name; 							// 类的名称
+	struct _zend_class_entry *parent;			// 继承的类
+	int refcount;								// 引用计数
+	uint32_t ce_flags;							// 类的标示
 
 	int default_properties_count;
 	int default_static_members_count;
 	zval *default_properties_table;
 	zval *default_static_members_table;
 	zval *static_members_table;
-	HashTable function_table;
-	HashTable properties_info;
-	HashTable constants_table;
+	HashTable function_table;					// 函数表
+	HashTable properties_info;					// 成员属性表
+	HashTable constants_table;					// 常量定义表
 
+	/* 类的魔术方法定义 */
 	union _zend_function *constructor;
 	union _zend_function *destructor;
 	union _zend_function *clone;
@@ -161,10 +162,10 @@ struct _zend_class_entry {
 	zend_class_iterator_funcs iterator_funcs;
 
 	/* handlers */
-	zend_object* (*create_object)(zend_class_entry *class_type);
-	zend_object_iterator *(*get_iterator)(zend_class_entry *ce, zval *object, int by_ref);
+	zend_object* (*create_object)(zend_class_entry *class_type); // new 一个类
+	zend_object_iterator *(*get_iterator)(zend_class_entry *ce, zval *object, int by_ref); // 获取类的迭代器
 	int (*interface_gets_implemented)(zend_class_entry *iface, zend_class_entry *class_type); /* a class implements this interface */
-	union _zend_function *(*get_static_method)(zend_class_entry *ce, zend_string* method);
+	union _zend_function *(*get_static_method)(zend_class_entry *ce, zend_string* method); // 获取类的静态方法
 
 	/* serializer callbacks */
 	int (*serialize)(zval *object, unsigned char **buffer, size_t *buf_len, zend_serialize_data *data);

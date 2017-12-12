@@ -119,7 +119,7 @@ void zend_exception_save(void) /* {{{ */
 void zend_exception_restore(void) /* {{{ */
 {
 	if (EG(prev_exception)) {
-		if (EG(exception)) {
+		if (EG(exception)) { // 执行期间有异常
 			zend_exception_set_previous(EG(exception), EG(prev_exception));
 		} else {
 			EG(exception) = EG(prev_exception);

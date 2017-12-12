@@ -44,7 +44,7 @@ static void fpm_event_queue_destroy(struct fpm_event_queue_s **queue);
 
 static struct fpm_event_module_s *module; // 存放进程使用的IO复用类型
 static struct fpm_event_queue_s *fpm_event_queue_timer = NULL;
-static struct fpm_event_queue_s *fpm_event_queue_fd = NULL;
+static struct fpm_event_queue_s *fpm_event_queue_fd = NULL; // 存放事件队列
 
 static void fpm_event_cleanup(int which, void *arg) /* {{{ */
 {
@@ -53,6 +53,7 @@ static void fpm_event_cleanup(int which, void *arg) /* {{{ */
 }
 /* }}} */
 
+/* master用来处理接收到的信号 */
 static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	char c;
@@ -61,7 +62,7 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 
 	do {
 		do {
-			res = read(fd, &c, 1);
+			res = read(fd, &c, 1); // 从sp[0]读
 		} while (res == -1 && errno == EINTR);
 
 		if (res <= 0) {
@@ -74,7 +75,7 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 		switch (c) {
 			case 'C' :                  /* SIGCHLD */
 				zlog(ZLOG_DEBUG, "received SIGCHLD");
-				fpm_children_bury();
+				fpm_children_bury(); // worker被kill了
 				break;
 			case 'I' :                  /* SIGINT  */
 				zlog(ZLOG_DEBUG, "received SIGINT");
@@ -84,16 +85,16 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 			case 'T' :                  /* SIGTERM */
 				zlog(ZLOG_DEBUG, "received SIGTERM");
 				zlog(ZLOG_NOTICE, "Terminating ...");
-				fpm_pctl(FPM_PCTL_STATE_TERMINATING, FPM_PCTL_ACTION_SET);
+				fpm_pctl(FPM_PCTL_STATE_TERMINATING, FPM_PCTL_ACTION_SET); // master结束
 				break;
 			case 'Q' :                  /* SIGQUIT */
 				zlog(ZLOG_DEBUG, "received SIGQUIT");
 				zlog(ZLOG_NOTICE, "Finishing ...");
-				fpm_pctl(FPM_PCTL_STATE_FINISHING, FPM_PCTL_ACTION_SET);
+				fpm_pctl(FPM_PCTL_STATE_FINISHING, FPM_PCTL_ACTION_SET);  // 进程退出
 				break;
 			case '1' :                  /* SIGUSR1 */
 				zlog(ZLOG_DEBUG, "received SIGUSR1");
-				if (0 == fpm_stdio_open_error_log(1)) {
+				if (0 == fpm_stdio_open_error_log(1)) { // 日志重新打开
 					zlog(ZLOG_NOTICE, "error log file re-opened");
 				} else {
 					zlog(ZLOG_ERROR, "unable to re-opened error log file");
@@ -110,8 +111,8 @@ static void fpm_got_signal(struct fpm_event_s *ev, short which, void *arg) /* {{
 				break;
 			case '2' :                  /* SIGUSR2 */
 				zlog(ZLOG_DEBUG, "received SIGUSR2");
-				zlog(ZLOG_NOTICE, "Reloading in progress ...");
-				fpm_pctl(FPM_PCTL_STATE_RELOADING, FPM_PCTL_ACTION_SET);
+				zlog(ZLOG_NOTICE, "Reloading in progress ..."); 
+				fpm_pctl(FPM_PCTL_STATE_RELOADING, FPM_PCTL_ACTION_SET); // 重启fpm
 				break;
 		}
 
@@ -310,6 +311,7 @@ const char *fpm_event_machanism_name() /* {{{ */
 }
 /* }}} */
 
+/* fpm事件是否支持边缘触发 */
 int fpm_event_support_edge_trigger() /* {{{ */
 {
 	return module ? module->support_edge_trigger : 0;
@@ -362,10 +364,12 @@ void fpm_event_loop(int err) /* {{{ */
 
 	/* sanity check */
 	if (fpm_globals.parent_pid != getpid()) {
+		/* 严格检查pid是不是子进程 */
 		return;
 	}
 
-	fpm_event_set(&signal_fd_event, fpm_signals_get_fd(), FPM_EV_READ, &fpm_got_signal, NULL);
+	/* 初始化了一个ev结构 */
+	fpm_event_set(&signal_fd_event, fpm_signals_get_fd(), FPM_EV_READ, &fpm_got_signal, NULL); 
 	fpm_event_add(&signal_fd_event, 0);
 
 	/* add timers */
@@ -411,7 +415,7 @@ void fpm_event_loop(int err) /* {{{ */
 				}
 			}
 			q = q->next;
-		}
+		} // q执行到这一步获取到一个即将要触发的时间事件，处理这段是为了计算fd需要wait多久
 
 		/* 1s timeout if none has been set */
 		if (!timerisset(&ms) || timercmp(&ms, &now, <) || timercmp(&ms, &now, ==)) {
@@ -421,7 +425,7 @@ void fpm_event_loop(int err) /* {{{ */
 			timeout = (tmp.tv_sec * 1000) + (tmp.tv_usec / 1000) + 1;
 		}
 
-		ret = module->wait(fpm_event_queue_fd, timeout);
+		ret = module->wait(fpm_event_queue_fd, timeout); // 先wait fd事件
 
 		/* is a child, nothing to do here */
 		if (ret == -2) {
@@ -433,6 +437,7 @@ void fpm_event_loop(int err) /* {{{ */
 		}
 
 		/* trigger timers */
+		/* 需要重新查一遍，再处理时间事件 */
 		q = fpm_event_queue_timer;
 		while (q) {
 			fpm_clock_get(&now);
@@ -465,12 +470,13 @@ void fpm_event_loop(int err) /* {{{ */
 					}
 				}
 			}
-			q = q->next;
+			q = q->next; // 继续处理下一个时间事件
 		}
 	}
 }
 /* }}} */
 
+/* 启动事件处理 */
 void fpm_event_fire(struct fpm_event_s *ev) /* {{{ */
 {
 	if (!ev || !ev->callback) {
@@ -481,6 +487,7 @@ void fpm_event_fire(struct fpm_event_s *ev) /* {{{ */
 }
 /* }}} */
 
+/* 注册sp0事件 */
 int fpm_event_set(struct fpm_event_s *ev, int fd, int flags, void (*callback)(struct fpm_event_s *, short, void *), void *arg) /* {{{ */
 {
 	if (!ev || !callback || fd < -1) {

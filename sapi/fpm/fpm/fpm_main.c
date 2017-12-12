@@ -1414,6 +1414,7 @@ static void init_request_info(void)
 }
 /* }}} */
 
+/* fpm处理请求的初始化函数 */
 static fcgi_request *fpm_init_request(int listen_fd) /* {{{ */ {
 	fcgi_request *req = fcgi_init_request(listen_fd,
 		fpm_request_accepting,

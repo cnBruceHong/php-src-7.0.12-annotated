@@ -79,6 +79,7 @@ ZEND_API void ZEND_FASTCALL _zval_dtor_func(zend_refcounted *p ZEND_FILE_LINE_DC
 	}
 }
 
+/* 根据传进来的p，分不同类型进行释放 */
 ZEND_API void ZEND_FASTCALL _zval_dtor_func_for_ptr(zend_refcounted *p ZEND_FILE_LINE_DC)
 {
 	switch (GC_TYPE(p)) {
@@ -118,7 +119,7 @@ ZEND_API void ZEND_FASTCALL _zval_dtor_func_for_ptr(zend_refcounted *p ZEND_FILE
 		case IS_REFERENCE: {
 				zend_reference *ref = (zend_reference*)p;
 
-				i_zval_ptr_dtor(&ref->val ZEND_FILE_LINE_RELAY_CC);
+				i_zval_ptr_dtor(&ref->val ZEND_FILE_LINE_RELAY_CC); // union 没学好。。。
 				efree_size(ref, sizeof(zend_reference));
 				break;
 			}

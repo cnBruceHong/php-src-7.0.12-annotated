@@ -389,6 +389,7 @@ typedef ZEND_OPCODE_HANDLER_RET (ZEND_FASTCALL *opcode_handler_t) (ZEND_OPCODE_H
 #define ZEND_VM_DISPATCH(opcode, opline) ZEND_VM_TAIL_CALL(((opcode_handler_t)zend_vm_get_opcode_handler(opcode, opline))(ZEND_OPCODE_HANDLER_ARGS_PASSTHRU));
 
 
+/* 执行函数 */
 ZEND_API void execute_ex(zend_execute_data *ex)
 {
 	DCL_OPLINE
@@ -429,15 +430,16 @@ ZEND_API void execute_ex(zend_execute_data *ex)
 # ifdef ZEND_VM_IP_GLOBAL_REG
 				opline = orig_opline;
 # endif
-				return;
+				return; // ret == -1 返回
 			}
 #endif
 		}
-
+		/* ret == 0 继续执行 */
 	}
 	zend_error_noreturn(E_CORE_ERROR, "Arrived at end of main loop which shouldn't happen");
 }
 
+/* zend执行器，代码执行的开始 */
 ZEND_API void zend_execute(zend_op_array *op_array, zval *return_value)
 {
 	zend_execute_data *execute_data;
@@ -446,10 +448,11 @@ ZEND_API void zend_execute(zend_op_array *op_array, zval *return_value)
 		return;
 	}
 
+	/* 将op_array推入调用堆栈，构建运行堆栈 */
 	execute_data = zend_vm_stack_push_call_frame(ZEND_CALL_TOP_CODE,
 		(zend_function*)op_array, 0, zend_get_called_scope(EG(current_execute_data)), zend_get_this_object(EG(current_execute_data)));
 	if (EG(current_execute_data)) {
-		execute_data->symbol_table = zend_rebuild_symbol_table();
+		execute_data->symbol_table = zend_rebuild_symbol_table(); // 重建语法表
 	} else {
 		execute_data->symbol_table = &EG(symbol_table);
 	}
@@ -50021,6 +50024,7 @@ static const void *zend_vm_get_opcode_handler(zend_uchar opcode, const zend_op* 
 		return zend_opcode_handlers[opcode * 25 + zend_vm_decode[op->op1_type] * 5 + zend_vm_decode[op->op2_type]];
 }
 
+/* 设置opcode */
 ZEND_API void zend_vm_set_opcode_handler(zend_op* op)
 {
 	op->handler = zend_vm_get_opcode_handler(zend_user_opcodes[op->opcode], op);

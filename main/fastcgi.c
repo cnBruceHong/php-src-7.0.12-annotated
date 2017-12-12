@@ -909,9 +909,9 @@ fcgi_request *fcgi_init_request(int listen_socket, void(*on_accept)(), void(*on_
 
 	*/
 	req->out_pos = req->out_buf;
-	req->hook.on_accept = on_accept ? on_accept : fcgi_hook_dummy;
-	req->hook.on_read = on_read ? on_read : fcgi_hook_dummy;
-	req->hook.on_close = on_close ? on_close : fcgi_hook_dummy;
+	req->hook.on_accept = on_accept ? on_accept : fcgi_hook_dummy; // 添加accept处理函数
+	req->hook.on_read = on_read ? on_read : fcgi_hook_dummy; // read 函数
+	req->hook.on_close = on_close ? on_close : fcgi_hook_dummy; // 关闭函数
 
 #ifdef _WIN32
 	req->tcp = !GetNamedPipeInfo((HANDLE)_get_osfhandle(req->listen_socket), NULL, NULL, NULL, NULL);

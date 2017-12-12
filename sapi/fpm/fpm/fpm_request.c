@@ -36,6 +36,7 @@ const char *fpm_request_get_stage_name(int stage) {
 	return requests_stages[stage];
 }
 
+/* 请求accept进来的处理函数 */
 void fpm_request_accepting() /* {{{ */
 {
 	struct fpm_scoreboard_proc_s *proc;

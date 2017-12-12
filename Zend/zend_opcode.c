@@ -577,6 +577,7 @@ static uint32_t zend_get_brk_cont_target(const zend_op_array *op_array, const ze
 	return opline->opcode == ZEND_BRK ? jmp_to->brk : jmp_to->cont;
 }
 
+/* 第二阶段解析，处理编译后的op_array */
 ZEND_API int pass_two(zend_op_array *op_array)
 {
 	zend_op *opline, *end;
@@ -607,6 +608,7 @@ ZEND_API int pass_two(zend_op_array *op_array)
 	}
 	opline = op_array->opcodes;
 	end = opline + op_array->last;
+	/* 遍历所有的opline */
 	while (opline < end) {
 		switch (opline->opcode) {
 			case ZEND_FAST_CALL:
@@ -701,11 +703,11 @@ ZEND_API int pass_two(zend_op_array *op_array)
 		if (opline->result_type & (IS_VAR|IS_TMP_VAR)) {
 			opline->result.var = (uint32_t)(zend_intptr_t)ZEND_CALL_VAR_NUM(NULL, op_array->last_var + opline->result.var);
 		}
-		ZEND_VM_SET_OPCODE_HANDLER(opline);
+		ZEND_VM_SET_OPCODE_HANDLER(opline); // 设置opcode
 		opline++;
 	}
 
-	op_array->fn_flags |= ZEND_ACC_DONE_PASS_TWO;
+	op_array->fn_flags |= ZEND_ACC_DONE_PASS_TWO; // 标记已经进行了第二阶段处理
 	return 0;
 }
 

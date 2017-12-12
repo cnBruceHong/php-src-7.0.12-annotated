@@ -206,7 +206,7 @@ int fpm_signals_init_main() /* {{{ */
 	act.sa_handler = sig_handler; // 信号处理函数
 	sigfillset(&act.sa_mask);
 
-	/* 安置函数 */
+	/* 设置信号的处理函数和掩码 */
 	if (0 > sigaction(SIGTERM,  &act, 0) ||
 	    0 > sigaction(SIGINT,   &act, 0) ||
 	    0 > sigaction(SIGUSR1,  &act, 0) ||

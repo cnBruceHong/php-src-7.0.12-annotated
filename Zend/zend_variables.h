@@ -51,12 +51,15 @@ static zend_always_inline void _zval_ptr_dtor_nogc(zval *zval_ptr ZEND_FILE_LINE
 	}
 }
 
+/* 删除一个zval */
 static zend_always_inline void i_zval_ptr_dtor(zval *zval_ptr ZEND_FILE_LINE_DC)
 {
-	if (Z_REFCOUNTED_P(zval_ptr)) {
-		if (!Z_DELREF_P(zval_ptr)) {
+	if (Z_REFCOUNTED_P(zval_ptr)) { // 判断类型 IS_TYPE_REFCOUNTED
+		if (!Z_DELREF_P(zval_ptr)) {  // 减一
+			/* 减一后refcount=0, 不是垃圾 */
 			_zval_dtor_func_for_ptr(Z_COUNTED_P(zval_ptr) ZEND_FILE_LINE_RELAY_CC);
 		} else {
+			// refcount-1后不为0
 			GC_ZVAL_CHECK_POSSIBLE_ROOT(zval_ptr);
 		}
 	}

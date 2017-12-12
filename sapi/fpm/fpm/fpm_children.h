@@ -28,7 +28,7 @@ struct fpm_child_s {
 	int fd_stdout, fd_stderr;
 	void (*tracer)(struct fpm_child_s *);
 	struct timeval slow_logged;
-	int idle_kill;
+	int idle_kill; // 是否是因为空闲被杀
 	pid_t pid;
 	int scoreboard_i;
 };

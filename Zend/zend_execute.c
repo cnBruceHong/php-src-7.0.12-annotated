@@ -2189,6 +2189,7 @@ static zend_always_inline void i_init_func_execute_data(zend_execute_data *execu
 }
 /* }}} */
 
+/* 对execute_data做初始化 */
 static zend_always_inline void i_init_code_execute_data(zend_execute_data *execute_data, zend_op_array *op_array, zval *return_value) /* {{{ */
 {
 	ZEND_ASSERT(EX(func) == (zend_function*)op_array);
@@ -2222,7 +2223,7 @@ static zend_always_inline void i_init_execute_data(zend_execute_data *execute_da
 {
 	ZEND_ASSERT(EX(func) == (zend_function*)op_array);
 
-	EX(opline) = op_array->opcodes;
+	EX(opline) = op_array->opcodes; // 将当前的 execute_data->opline 指向 op_array->opcodes
 	EX(call) = NULL;
 	EX(return_value) = return_value;
 

@@ -157,7 +157,7 @@ struct _zend_op {
 	znode_op op1; 				// 操作数1
 	znode_op op2; 				// 操作数2
 	znode_op result; 			// 返回值
-	uint32_t extended_value;	// 
+	uint32_t extended_value;	// 保存额外的信息，比如函数调用的参数个数
 	uint32_t lineno;			// 保存行号
 	zend_uchar opcode;			// opcode指令
 	zend_uchar op1_type;		// 操作数1的类型
@@ -278,6 +278,7 @@ typedef struct _zend_try_catch_element {
 
 char *zend_visibility_string(uint32_t fn_flags);
 
+/* 成员属性结构体 */
 typedef struct _zend_property_info {
 	uint32_t offset; /* property offset for object properties or
 	                      property index for static properties */
@@ -340,7 +341,7 @@ struct _zend_op_array {
 	zend_function *prototype;
 	uint32_t num_args;
 	uint32_t required_num_args;
-	zend_arg_info *arg_info;
+	zend_arg_info *arg_info; // 存放函数的参数信息，是一个链表结构
 	/* END of common elements */
 
 	uint32_t *refcount;
@@ -424,23 +425,23 @@ typedef enum _zend_call_kind {
 	ZEND_CALL_NESTED_FUNCTION,	/* stackless VM call to function */
 	ZEND_CALL_NESTED_CODE,		/* stackless VM call to include/require/eval */
 	ZEND_CALL_TOP_FUNCTION,		/* direct VM call to function from external C code */
-	ZEND_CALL_TOP_CODE			/* direct VM call to "main" code from external C code */
+	ZEND_CALL_TOP_CODE			/* direct VM call to "main" code from external C code 调用主脚本 */
 } zend_call_kind;
 
 struct _zend_execute_data {
 	const zend_op       *opline;           /* executed opline，当前执行中的指令，可以理解为eip指令寄存器的作用 */
-	zend_execute_data   *call;             /* current call，  */
-	zval                *return_value;
+	zend_execute_data   *call;             /* current call，当前运行的stack  */
+	zval                *return_value; 	   /* 存放return值，比如generator就是从这里拿数据的 */	
 	zend_function       *func;             /* executed funcrion              */
 	zval                 This;             /* this + call_info + num_args    */
 	zend_class_entry    *called_scope;
 	zend_execute_data   *prev_execute_data; // 调用上下文，当调用函数或者include时，会把当前zend_execute_data保存在被调用函数的zend_execute_data的这个指针中
-	zend_array          *symbol_table;
+	zend_array          *symbol_table; 		// 保存全局变量
 #if ZEND_EX_USE_RUN_TIME_CACHE
 	void               **run_time_cache;   /* cache op_array->run_time_cache */
 #endif
 #if ZEND_EX_USE_LITERALS
-	zval                *literals;         /* cache op_array->literals       */
+	zval                *literals;         /* cache op_array->literals, 保存字面量 */
 #endif
 };
 

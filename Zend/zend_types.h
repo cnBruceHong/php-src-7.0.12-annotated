@@ -81,7 +81,7 @@ typedef struct _zend_class_entry     zend_class_entry;
 typedef union  _zend_function        zend_function;
 typedef struct _zend_execute_data    zend_execute_data;
 
-typedef struct _zval_struct     zval;
+typedef struct _zval_struct     zval; // zval对象
 
 typedef struct _zend_refcounted zend_refcounted;
 typedef struct _zend_string     zend_string;
@@ -98,11 +98,11 @@ typedef void (*sort_func_t)(void *, size_t, size_t, compare_func_t, swap_func_t)
 typedef void (*dtor_func_t)(zval *pDest);
 typedef void (*copy_ctor_func_t)(zval *pElement);
 
-/* zval结构 */
+/* zend_value结构 */
 typedef union _zend_value {
 	zend_long         lval;				/* long value 长整型值 */
 	double            dval;				/* double value 双精度浮点值 */
-	zend_refcounted  *counted;  		/* 引用计数 */
+	zend_refcounted  *counted;  		/* 引用计数，php7迁移到这里来了 */
 	zend_string      *str; 				/* 字符串值 */
 	zend_array       *arr; 				/* 数组 */
 	zend_object      *obj;				/* 对象指针，指向对象类型 */
@@ -111,8 +111,8 @@ typedef union _zend_value {
 	zend_ast_ref     *ast; 				/* 抽象语法树 */
 	zval             *zv;
 	void             *ptr;
-	zend_class_entry *ce;
-	zend_function    *func;
+	zend_class_entry *ce;				/* 指向类实例 */
+	zend_function    *func;				/* 指向函数 */
 	struct {
 		uint32_t w1;
 		uint32_t w2;
@@ -125,23 +125,23 @@ struct _zval_struct {
 	union {
 		struct {
 			ZEND_ENDIAN_LOHI_4(
-				zend_uchar    type,			/* active type */
-				zend_uchar    type_flags,
+				zend_uchar    type,			/* active type，变量类型 */
+				zend_uchar    type_flags,	/* 类型掩码，内存管理会用到 */
 				zend_uchar    const_flags,
-				zend_uchar    reserved)	    /* call info for EX(This) */
+				zend_uchar    reserved)	    /* call info for EX(This)，预留字段 */
 		} v;
 		uint32_t type_info;
 	} u1;
 	union {
 		uint32_t     var_flags;
-		uint32_t     next;                 /* hash collision chain */ /* 哈希冲突碰撞链 */
+		uint32_t     next;                 /* hash collision chain */ /* 哈希冲突碰撞时，指向下一个冲突对象 */
 		uint32_t     cache_slot;           /* literal cache slot */
 		uint32_t     lineno;               /* line number (for ast nodes) ast节点用于存放行号 */
 		uint32_t     num_args;             /* arguments number for EX(This) */
 		uint32_t     fe_pos;               /* foreach position */
 		uint32_t     fe_iter_idx;          /* foreach iterator index */
-	} u2;
-};
+	} u2; // 为了不浪费内存，设计出来的u2
+}; // 整个zval是16字节
 
 typedef struct _zend_refcounted_h {
 	uint32_t         refcount;			/* reference counter 32-bit 32位的引用计数器 */
@@ -150,7 +150,7 @@ typedef struct _zend_refcounted_h {
 			ZEND_ENDIAN_LOHI_3(
 				zend_uchar    type,
 				zend_uchar    flags,    /* used for strings & objects */
-				uint16_t      gc_info)  /* keeps GC root number (or 0) and color */
+				uint16_t      gc_info)  /* keeps GC root number (or 0) and color 保存buf的位置和，垃圾的颜色 */
 		} v;
 		uint32_t type_info;				/* 类型信息 */
 	} u; /*  */
@@ -166,7 +166,7 @@ struct _zend_string {
 	zend_refcounted_h gc;				/* gc信息 */
 	zend_ulong        h;                /* hash value 哈希值 */
 	size_t            len;				/* 字符串长度 */
-	char              val[1]; 			/* 字符串的值 */
+	char              val[1]; 			/* 字符串的值，是一个可变数组 */
 };
 
 /* 哈希表中实际存放值的『桶』 */
@@ -181,25 +181,25 @@ typedef struct _zend_array HashTable;
 
 /* zend的数组表现形式，也就是我们说的哈希表 */
 struct _zend_array {
-	zend_refcounted_h gc;
+	zend_refcounted_h gc; // 引用计数
 	union {
 		struct {
-			ZEND_ENDIAN_LOHI_4(
+			ZEND_ENDIAN_LOHI_4( // 这个宏定义处理大小端字节序
 				zend_uchar    flags,
 				zend_uchar    nApplyCount,
 				zend_uchar    nIteratorsCount,
 				zend_uchar    reserve)
 		} v;
-		uint32_t flags;
+		uint32_t flags; // 用于标记这个array的状态，比如内存初始化了没有
 	} u;
-	uint32_t          nTableMask; 		/* 掩码，表大小减一，a & (n-1)等价于 a mod n，位运算更快 */
-	Bucket           *arData;	  		/* 指向Bucket的指针 */
+	uint32_t          nTableMask; 		/* 掩码，实际就是nTableSize的负数 */
+	Bucket           *arData;	  		/* 指向第一个Bucket的指针 */
 	uint32_t          nNumUsed;	  		/* 多少个已经被使用了 */
 	uint32_t          nNumOfElements;   /* 表中一共有多少元素 */
 	uint32_t          nTableSize;		/* 哈希表的规模 */
-	uint32_t          nInternalPointer; /* 表的内部指针 */
-	zend_long         nNextFreeElement; /*  */
-	dtor_func_t       pDestructor;
+	uint32_t          nInternalPointer; /* 表的内部临时存放的"指针" */
+	zend_long         nNextFreeElement; /* 给未指定key的item使用的数字key数组下标，从0开始 */
+	dtor_func_t       pDestructor; 		/* 存放析构函数 */
 };
 
 /*
@@ -235,10 +235,10 @@ struct _zend_array {
 	((idx) * sizeof(Bucket))
 # define HT_HASH_TO_IDX(idx) \
 	((idx) / sizeof(Bucket))
-/* 如果你是类Unix的话看到这里就可以了…… */
 #elif SIZEOF_SIZE_T == 8
-/* win 64位才会有size_t = 8 */
 # define HT_MAX_SIZE 0x80000000
+
+/* 传入data(arData，真正存放数据的数组的首地址)，用idx索引取出数据 */
 # define HT_HASH_TO_BUCKET_EX(data, idx) \
 	((data) + (idx))
 # define HT_IDX_TO_HASH(idx) \
@@ -249,23 +249,33 @@ struct _zend_array {
 # error "Unknown SIZEOF_SIZE_T"
 #endif
 
+/* 通过索引idx取出数组中的数据 */
 #define HT_HASH_EX(data, idx) \
 	((uint32_t*)(data))[(int32_t)(idx)]
 #define HT_HASH(ht, idx) \
 	HT_HASH_EX((ht)->arData, idx)
 
+/* nTableMask是一个负值，需要转成正数然后乘上uint32_t的大小就是中间映射表的大小了 */
 #define HT_HASH_SIZE(nTableMask) \
 	(((size_t)(uint32_t)-(int32_t)(nTableMask)) * sizeof(uint32_t))
+
+/* 获取Bucket的总大小 */
 #define HT_DATA_SIZE(nTableSize) \
 	((size_t)(nTableSize) * sizeof(Bucket))
+
 #define HT_SIZE_EX(nTableSize, nTableMask) \
 	(HT_DATA_SIZE((nTableSize)) + HT_HASH_SIZE((nTableMask)))
+
 #define HT_SIZE(ht) \
 	HT_SIZE_EX((ht)->nTableSize, (ht)->nTableMask)
+
 #define HT_USED_SIZE(ht) \
 	(HT_HASH_SIZE((ht)->nTableMask) + ((size_t)(ht)->nNumUsed * sizeof(Bucket)))
+
 #define HT_HASH_RESET(ht) \
 	memset(&HT_HASH(ht, (ht)->nTableMask), HT_INVALID_IDX, HT_HASH_SIZE((ht)->nTableMask))
+
+/* 初始化数组的值为-1 */
 #define HT_HASH_RESET_PACKED(ht) do { \
 		HT_HASH(ht, -2) = HT_INVALID_IDX; \
 		HT_HASH(ht, -1) = HT_INVALID_IDX; \
@@ -273,9 +283,17 @@ struct _zend_array {
 #define HT_HASH_TO_BUCKET(ht, idx) \
 	HT_HASH_TO_BUCKET_EX((ht)->arData, idx)
 
+/**
+ * ptr代表了hashtable中的中间映射表首地址
+ * 映射表的规模就是ht的规模
+ */
 #define HT_SET_DATA_ADDR(ht, ptr) do { \
 		(ht)->arData = (Bucket*)(((char*)(ptr)) + HT_HASH_SIZE((ht)->nTableMask)); \
 	} while (0)
+
+/**
+ * 获取映射表的首地址，用arData减去容量
+ */
 #define HT_GET_DATA_ADDR(ht) \
 	((char*)((ht)->arData) - HT_HASH_SIZE((ht)->nTableMask))
 
@@ -286,6 +304,7 @@ typedef struct _HashTableIterator {
 	HashPosition  pos;
 } HashTableIterator;
 
+/* 表示一个对象类型 */
 struct _zend_object {
 	zend_refcounted_h gc;
 	uint32_t          handle;
@@ -295,6 +314,7 @@ struct _zend_object {
 	zval              properties_table[1];
 };
 
+/* 表示一个资源类型 */
 struct _zend_resource {
 	zend_refcounted_h gc;
 	int               handle;
@@ -302,11 +322,13 @@ struct _zend_resource {
 	void             *ptr;
 };
 
+/* 表示一个引用类型 */
 struct _zend_reference {
 	zend_refcounted_h gc;
 	zval              val;
 };
 
+/* 表示一个ast引用 */
 struct _zend_ast_ref {
 	zend_refcounted_h gc;
 	zend_ast         *ast;
@@ -336,9 +358,11 @@ struct _zend_ast_ref {
 #define IS_CALLABLE					14
 
 /* internal types */
+/* 内部类型 */
 #define IS_INDIRECT             	15
 #define IS_PTR						17
 
+/* 获取zval的类型，封装在ZTYPE宏定义中 */
 static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 	return pz->u1.v.type;
 }
@@ -352,10 +376,10 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define Z_TYPE(zval)				zval_get_type(&(zval))
 #define Z_TYPE_P(zval_p)			Z_TYPE(*(zval_p))
 
-#define Z_TYPE_FLAGS(zval)			(zval).u1.v.type_flags
+#define Z_TYPE_FLAGS(zval)			(zval).u1.v.type_flags // 获取 类型掩码
 #define Z_TYPE_FLAGS_P(zval_p)		Z_TYPE_FLAGS(*(zval_p))
 
-#define Z_CONST_FLAGS(zval)			(zval).u1.v.const_flags
+#define Z_CONST_FLAGS(zval)			(zval).u1.v.const_flags 
 #define Z_CONST_FLAGS_P(zval_p)		Z_CONST_FLAGS(*(zval_p))
 
 #define Z_VAR_FLAGS(zval)			(zval).u2.var_flags
@@ -579,7 +603,8 @@ static zend_always_inline zend_uchar zval_get_type(const zval* pz) {
 #define Z_REF(zval)					(zval).value.ref
 #define Z_REF_P(zval_p)				Z_REF(*(zval_p))
 
-#define Z_REFVAL(zval)				&Z_REF(zval)->val
+/* 获取zval的引用的值 */
+#define Z_REFVAL(zval)				&Z_REF(zval)->val   // (zval).value.ref->val
 #define Z_REFVAL_P(zval_p)			Z_REFVAL(*(zval_p))
 
 #define Z_AST(zval)					(zval).value.ast
@@ -838,6 +863,7 @@ static zend_always_inline uint32_t zval_addref_p(zval* pz) {
 	return ++GC_REFCOUNT(Z_COUNTED_P(pz));
 }
 
+/* 对zval参数的ref-1后返回 */
 static zend_always_inline uint32_t zval_delref_p(zval* pz) {
 	ZEND_ASSERT(Z_REFCOUNTED_P(pz));
 	return --GC_REFCOUNT(Z_COUNTED_P(pz));

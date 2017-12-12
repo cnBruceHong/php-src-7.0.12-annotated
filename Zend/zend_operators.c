@@ -428,6 +428,7 @@ try_again:
 }
 /* }}} */
 
+/* 转换为NULL */
 ZEND_API void ZEND_FASTCALL convert_to_null(zval *op) /* {{{ */
 {
 	if (Z_TYPE_P(op) == IS_OBJECT) {
@@ -448,6 +449,7 @@ ZEND_API void ZEND_FASTCALL convert_to_null(zval *op) /* {{{ */
 }
 /* }}} */
 
+/* 转换为布尔 */
 ZEND_API void ZEND_FASTCALL convert_to_boolean(zval *op) /* {{{ */
 {
 	int tmp;
@@ -475,6 +477,7 @@ try_again:
 			break;
 		case IS_STRING:
 			{
+				/* "0"和空字符串为false */
 				zend_string *str = Z_STR_P(op);
 
 				if (ZSTR_LEN(str) == 0

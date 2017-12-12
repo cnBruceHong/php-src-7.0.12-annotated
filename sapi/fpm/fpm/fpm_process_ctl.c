@@ -307,6 +307,7 @@ static void fpm_pctl_check_request_timeout(struct timeval *now) /* {{{ */
 }
 /* }}} */
 
+/* worker空闲定时器的处理方法 */
 static void fpm_pctl_perform_idle_server_maintenance(struct timeval *now) /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
@@ -321,18 +322,19 @@ static void fpm_pctl_perform_idle_server_maintenance(struct timeval *now) /* {{{
 
 		if (wp->config == NULL) continue;
 
+		/* 搜索 */
 		for (child = wp->children; child; child = child->next) {
 			if (fpm_request_is_idle(child)) {
 				if (last_idle_child == NULL) {
-					last_idle_child = child;
+					last_idle_child = child; // 记录一个空闲最久的child，用于kill
 				} else {
 					if (timercmp(&child->started, &last_idle_child->started, <)) {
 						last_idle_child = child;
 					}
 				}
-				idle++;
+				idle++; // 计算空闲数
 			} else {
-				active++;
+				active++; // 计算活跃数
 			}
 		}
 
@@ -438,6 +440,7 @@ static void fpm_pctl_perform_idle_server_maintenance(struct timeval *now) /* {{{
 }
 /* }}} */
 
+/* 创建心跳定时器 */
 void fpm_pctl_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	static struct fpm_event_s heartbeat;
@@ -463,6 +466,7 @@ void fpm_pctl_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ *
 }
 /* }}} */
 
+/* 注册一个定时器 */
 void fpm_pctl_perform_idle_server_maintenance_heartbeat(struct fpm_event_s *ev, short which, void *arg) /* {{{ */
 {
 	static struct fpm_event_s heartbeat;
@@ -488,6 +492,7 @@ void fpm_pctl_perform_idle_server_maintenance_heartbeat(struct fpm_event_s *ev, 
 	}
 
 	/* first call without setting which to initialize the timer */
+	/* 下面的流程只会执行一次，设置后不再走到这里 */
 	fpm_event_set_timer(&heartbeat, FPM_EV_PERSIST, &fpm_pctl_perform_idle_server_maintenance_heartbeat, NULL);
 	fpm_event_add(&heartbeat, FPM_IDLE_SERVER_MAINTENANCE_HEARTBEAT);
 }

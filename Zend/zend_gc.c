@@ -178,6 +178,7 @@ ZEND_API void gc_globals_dtor(void)
 #endif
 }
 
+/* 初始化或者重置gc回收器的状态 */
 ZEND_API void gc_reset(void)
 {
 	GC_G(gc_runs) = 0;
@@ -201,7 +202,7 @@ ZEND_API void gc_reset(void)
 
 	if (GC_G(buf)) {
 		GC_G(unused) = NULL;
-		GC_G(first_unused) = GC_G(buf) + 1;
+		GC_G(first_unused) = GC_G(buf) + 1; // 第一个保留不使用
 	} else {
 		GC_G(unused) = NULL;
 		GC_G(first_unused) = NULL;
@@ -209,15 +210,17 @@ ZEND_API void gc_reset(void)
 	}
 }
 
+/* 初始化gc */
 ZEND_API void gc_init(void)
 {
 	if (GC_G(buf) == NULL && GC_G(gc_enabled)) {
-		GC_G(buf) = (gc_root_buffer*) malloc(sizeof(gc_root_buffer) * GC_ROOT_BUFFER_MAX_ENTRIES);
+		GC_G(buf) = (gc_root_buffer*) malloc(sizeof(gc_root_buffer) * GC_ROOT_BUFFER_MAX_ENTRIES); // 分配10001个buf
 		GC_G(last_unused) = &GC_G(buf)[GC_ROOT_BUFFER_MAX_ENTRIES];
 		gc_reset();
 	}
 }
 
+/* 传入引用计数，加入buf */
 ZEND_API void ZEND_FASTCALL gc_possible_root(zend_refcounted *ref)
 {
 	gc_root_buffer *newRoot;
@@ -232,18 +235,18 @@ ZEND_API void ZEND_FASTCALL gc_possible_root(zend_refcounted *ref)
 
 	GC_BENCH_INC(zval_possible_root);
 
-	newRoot = GC_G(unused);
+	newRoot = GC_G(unused); // 从unused中拿位置
 	if (newRoot) {
-		GC_G(unused) = newRoot->prev;
-	} else if (GC_G(first_unused) != GC_G(last_unused)) {
+		GC_G(unused) = newRoot->prev; // 添加新的unused
+	} else if (GC_G(first_unused) != GC_G(last_unused)) { // unused用完了，用first_unused的位置
 		newRoot = GC_G(first_unused);
 		GC_G(first_unused)++;
 	} else {
 		if (!GC_G(gc_enabled)) {
 			return;
 		}
-		GC_REFCOUNT(ref)++;
-		gc_collect_cycles();
+		GC_REFCOUNT(ref)++;  // 把前面减掉的补回去
+		gc_collect_cycles(); // 启动垃圾回收
 		GC_REFCOUNT(ref)--;
 		if (UNEXPECTED(GC_REFCOUNT(ref)) == 0) {
 			zval_dtor_func_for_ptr(ref);
@@ -266,7 +269,7 @@ ZEND_API void ZEND_FASTCALL gc_possible_root(zend_refcounted *ref)
 	}
 
 	GC_TRACE_SET_COLOR(ref, GC_PURPLE);
-	GC_INFO(ref) = (newRoot - GC_G(buf)) | GC_PURPLE;
+	GC_INFO(ref) = (newRoot - GC_G(buf)) | GC_PURPLE; // 保存该垃圾在buf中的位置，标记已经收集的ref，标记为紫色
 	newRoot->ref = ref;
 
 	newRoot->next = GC_G(roots).next;
@@ -279,6 +282,7 @@ ZEND_API void ZEND_FASTCALL gc_possible_root(zend_refcounted *ref)
 	GC_BENCH_PEAK(root_buf_peak, root_buf_length);
 }
 
+/* 把ref从buf中删除 */
 ZEND_API void ZEND_FASTCALL gc_remove_from_buffer(zend_refcounted *ref)
 {
 	gc_root_buffer *root;
@@ -288,7 +292,7 @@ ZEND_API void ZEND_FASTCALL gc_remove_from_buffer(zend_refcounted *ref)
 
 	GC_BENCH_INC(zval_remove_from_buffer);
 
-	root = GC_G(buf) + GC_ADDRESS(GC_INFO(ref));
+	root = GC_G(buf) + GC_ADDRESS(GC_INFO(ref)); // 计算ref在buf中的位置
 	if (GC_REF_GET_COLOR(ref) != GC_BLACK) {
 		GC_TRACE_SET_COLOR(ref, GC_PURPLE);
 	}
@@ -419,7 +423,7 @@ tail_call:
 	if (GC_REF_GET_COLOR(ref) != GC_GREY) {
 		ht = NULL;
 		GC_BENCH_INC(zval_marked_grey);
-		GC_REF_SET_COLOR(ref, GC_GREY);
+		GC_REF_SET_COLOR(ref, GC_GREY); // 记为灰色
 
 		if (GC_TYPE(ref) == IS_OBJECT && !(GC_FLAGS(ref) & IS_OBJ_FREE_CALLED)) {
 			zend_object_get_gc_t get_gc;
@@ -458,7 +462,7 @@ tail_call:
 			}
 		} else if (GC_TYPE(ref) == IS_ARRAY) {
 			if (((zend_array*)ref) == &EG(symbol_table)) {
-				GC_REF_SET_BLACK(ref);
+				GC_REF_SET_BLACK(ref); // symbol_table 不能清理
 				return;
 			} else {
 				ht = (zend_array*)ref;
@@ -483,13 +487,14 @@ tail_call:
 		p = ht->arData;
 		end = p + ht->nNumUsed;
 		while (1) {
+			/* 这个循环是为了确定数组中有没有引用类型的元素 */
 			end--;
 			zv = &end->val;
 			if (Z_TYPE_P(zv) == IS_INDIRECT) {
 				zv = Z_INDIRECT_P(zv);
 			}
 			if (Z_REFCOUNTED_P(zv)) {
-				break;
+				break; // 这个数组中有引用类型
 			}
 			if (p == end) return;
 		}
@@ -525,6 +530,7 @@ tail_call:
 	}
 }
 
+/* gc步骤一，标记垃圾为灰色，并对其成员-1操作 */
 static void gc_mark_roots(void)
 {
 	gc_root_buffer *current = GC_G(roots).next;
@@ -980,6 +986,7 @@ tail_call:
 	}
 }
 
+/* 垃圾回收机制函数 */
 ZEND_API int zend_gc_collect_cycles(void)
 {
 	int count = 0;
@@ -994,16 +1001,16 @@ ZEND_API int zend_gc_collect_cycles(void)
 		zend_bool orig_gc_full;
 #endif
 
-		if (GC_G(gc_active)) {
+		if (GC_G(gc_active)) { // 确认gc回收机制是否在运行
 			return 0;
 		}
 
 		GC_TRACE("Collecting cycles");
-		GC_G(gc_runs)++;
-		GC_G(gc_active) = 1;
+		GC_G(gc_runs)++; // gc执行次数+1
+		GC_G(gc_active) = 1;  // 标记gc开始了
 
 		GC_TRACE("Marking roots");
-		gc_mark_roots();
+		gc_mark_roots(); // 先标记垃圾为灰色
 		GC_TRACE("Scanning roots");
 		gc_scan_roots();
 

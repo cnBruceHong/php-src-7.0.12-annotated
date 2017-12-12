@@ -956,15 +956,16 @@ ZEND_API char *get_zend_version(void) /* {{{ */
 }
 /* }}} */
 
+/* zend引擎激活函数 */
 ZEND_API void zend_activate(void) /* {{{ */
 {
 #ifdef ZTS
 	virtual_cwd_activate();
 #endif
-	gc_reset();
-	init_compiler();
-	init_executor();
-	startup_scanner();
+	gc_reset(); // gc重置
+	init_compiler(); // 初始化编译器
+	init_executor(); // 初始化执行器
+	startup_scanner(); // 初始化扫描器
 }
 /* }}} */
 
@@ -986,7 +987,7 @@ ZEND_API void zend_deactivate(void) /* {{{ */
 	} zend_end_try();
 
 	/* shutdown_executor() takes care of its own bailout handling */
-	shutdown_executor();
+	shutdown_executor(); 
 
 	zend_try {
 		zend_ini_deactivate();
@@ -1441,14 +1442,14 @@ ZEND_API int zend_execute_scripts(int type, zval *retval, int file_count, ...) /
 			continue;
 		}
 
-		op_array = zend_compile_file(file_handle, type);
+		op_array = zend_compile_file(file_handle, type); // 将php代码文件送入编译器编译，获得op_array
 		if (file_handle->opened_path) {
 			zend_hash_add_empty_element(&EG(included_files), file_handle->opened_path);
 		}
-		zend_destroy_file_handle(file_handle);
-		if (op_array) {
-			zend_execute(op_array, retval);
-			zend_exception_restore();
+		zend_destroy_file_handle(file_handle); // 释放代码文件
+		if (op_array) { 
+			zend_execute(op_array, retval); // 开始执行代码
+			zend_exception_restore(); // 异常转储
 			zend_try_exception_handler();
 			if (EG(exception)) {
 				zend_exception_error(EG(exception), E_ERROR);

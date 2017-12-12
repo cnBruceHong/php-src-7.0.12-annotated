@@ -160,7 +160,7 @@ static int fpm_sockets_hash_op(int sock, struct sockaddr *sa, char *key, int typ
 }
 /* }}} */
 
-/* 创建新的监听socket */
+/* 创建新的监听socket，监听端口 */
 static int fpm_sockets_new_listening_socket(struct fpm_worker_pool_s *wp, struct sockaddr *sa, int socklen) /* {{{ */
 {
 	int flags = 1;
@@ -363,6 +363,7 @@ int fpm_sockets_init_main() /* {{{ */
 	/* create all required sockets */
 	for (wp = fpm_worker_all_pools; wp; wp = wp->next) {
 		/* 循环，为每个wp创建socket */
+		 // 对每个worker pool 创建socket，执行到bind阶段
 		switch (wp->listen_address_domain) {
 			case FPM_AF_INET : // IP
 				wp->listening_socket = fpm_socket_af_inet_listening_socket(wp);

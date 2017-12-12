@@ -69,21 +69,21 @@ typedef struct _gc_root_buffer {
 
 /* zend垃圾回收器 */
 typedef struct _zend_gc_globals {
-	zend_bool         gc_enabled;
-	zend_bool         gc_active;
-	zend_bool         gc_full;
+	zend_bool         gc_enabled; 		// 是否启用gc
+	zend_bool         gc_active; 		// 是否正在gc中
+	zend_bool         gc_full; 			// buffer区是不是满了
 
-	gc_root_buffer   *buf;				/* preallocated arrays of buffers   */
-	gc_root_buffer    roots;			/* list of possible roots of cycles */
-	gc_root_buffer   *unused;			/* list of unused buffers           */
-	gc_root_buffer   *first_unused;		/* pointer to first unused buffer   */
-	gc_root_buffer   *last_unused;		/* pointer to last unused buffer    */
+	gc_root_buffer   *buf;				/* preallocated arrays of buffers 启动时分配的用于保存可能垃圾的缓存区，二维数组，起始是10001个 */
+	gc_root_buffer    roots;			/* list of possible roots of cycles 指向buf中最新加入的一个可能的垃圾 */
+	gc_root_buffer   *unused;			/* list of unused buffers 指向buf中没有使用的buf区 */
+	gc_root_buffer   *first_unused;		/* pointer to first unused buffer 指向buf中第一个没有使用的buf区 */
+	gc_root_buffer   *last_unused;		/* pointer to last unused buffer 指向最后一个没有使用的buf区 */
 
-	gc_root_buffer    to_free;			/* list to free                     */
+	gc_root_buffer    to_free;			/* list to free  待释放的垃圾 */
 	gc_root_buffer   *next_to_free;
 
-	uint32_t gc_runs;
-	uint32_t collected;
+	uint32_t gc_runs; // 统计gc的运行次数
+	uint32_t collected; // 统计已经回收的垃圾数
 
 #if GC_BENCH
 	uint32_t root_buf_length;
@@ -130,11 +130,13 @@ END_EXTERN_C()
 		} \
 	} while (0)
 
+/* 检查是否有可能是垃圾 */
 static zend_always_inline void gc_check_possible_root(zval *z)
 {
-	ZVAL_DEREF(z);
+	ZVAL_DEREF(z); // 取z的value
 	if (Z_COLLECTABLE_P(z) && UNEXPECTED(!Z_GC_INFO_P(z))) {
-		gc_possible_root(Z_COUNTED_P(z));
+		/* 如果z的引用的值还是一个可回收对象, */
+		gc_possible_root(Z_COUNTED_P(z)); // (z).value.counted
 	}
 }
 

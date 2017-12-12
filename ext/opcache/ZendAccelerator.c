@@ -2640,6 +2640,7 @@ static void accel_move_code_to_huge_pages(void)
 # endif /* defined(MAP_HUGETLB) || defined(MADV_HUGEPAGE) */
 #endif /* HAVE_HUGE_CODE_PAGES */
 
+/* 开启opcache */
 static int accel_startup(zend_extension *extension)
 {
 	zend_function *func;

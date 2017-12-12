@@ -119,6 +119,7 @@ static void fpm_child_unlink(struct fpm_child_s *child) /* {{{ */
 }
 /* }}} */
 
+/* 根据pid查找wp中的孩子 */
 static struct fpm_child_s *fpm_child_find(pid_t pid) /* {{{ */
 {
 	struct fpm_worker_pool_s *wp;
@@ -180,7 +181,7 @@ void fpm_children_bury() /* {{{ */
 	pid_t pid;
 	struct fpm_child_s *child;
 
-	while ( (pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) {
+	while ( (pid = waitpid(-1, &status, WNOHANG | WUNTRACED)) > 0) { // 提取worker的pid
 		char buf[128];
 		int severity = ZLOG_NOTICE;
 		int restart_child = 1;
@@ -195,6 +196,7 @@ void fpm_children_bury() /* {{{ */
 			 * don't restart it automaticaly
 			 */
 			if (child && child->idle_kill) {
+				/* 如果是master杀的话，不需要重启 */
 				restart_child = 0;
 			}
 
@@ -216,7 +218,7 @@ void fpm_children_bury() /* {{{ */
 			 * don't restart it automaticaly
 			 */
 			if (child && child->idle_kill && WTERMSIG(status) == SIGQUIT) {
-				restart_child = 0;
+				restart_child = 0; // 孩子正常退出
 			}
 
 			if (WTERMSIG(status) != SIGQUIT) { /* possible request loss */
@@ -284,6 +286,7 @@ void fpm_children_bury() /* {{{ */
 				}
 			}
 
+			/* 是否需要重启worker进程 */
 			if (restart_child) {
 				fpm_children_make(wp, 1 /* in event loop */, 1, 0);
 
@@ -423,6 +426,7 @@ int fpm_children_make(struct fpm_worker_pool_s *wp, int in_event_loop, int nb_to
 				fpm_parent_resources_use(child);
 
 				zlog(is_debug ? ZLOG_DEBUG : ZLOG_NOTICE, "[pool %s] child %d started", wp->config->name, (int) pid);
+				/* 父进程继续循环fork */
 		}
 
 	}

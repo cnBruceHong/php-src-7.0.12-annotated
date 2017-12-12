@@ -14,7 +14,7 @@
 
 /* 用于存放一个事件 */
 struct fpm_event_s {
-	int fd;                   /* not set with FPM_EV_TIMEOUT */ // 时间代表的fd，也就是监听的fd
+	int fd;                   /* not set with FPM_EV_TIMEOUT */ // 事件代表的fd，也就是监听的fd
 	struct timeval timeout;   /* next time to trigger */ // 下一次触发事件的时间，用于时间事件中
 	struct timeval frequency; // 时间事件的触发频率, 毫秒为单位
 	void (*callback)(struct fpm_event_s *, short, void *); // 时间触发的回调函数

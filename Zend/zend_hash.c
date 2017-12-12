@@ -92,6 +92,7 @@ static void _zend_is_inconsistent(const HashTable *ht, const char *file, int lin
 
 static void ZEND_FASTCALL zend_hash_do_resize(HashTable *ht);
 
+/* 根据nSize，选择一个2的幂次方 */
 static uint32_t zend_always_inline zend_hash_check_size(uint32_t nSize)
 {
 #if defined(ZEND_WIN32)
@@ -100,6 +101,7 @@ static uint32_t zend_always_inline zend_hash_check_size(uint32_t nSize)
 
 	/* Use big enough power of 2 */
 	/* size should be between HT_MIN_SIZE and HT_MAX_SIZE */
+	/* nSize介于 HT_MIN_SIZE (8) 和 HT_MAX_SIZE 之间 */
 	if (nSize < HT_MIN_SIZE) {
 		nSize = HT_MIN_SIZE;
 	} else if (UNEXPECTED(nSize >= HT_MAX_SIZE)) {
@@ -127,15 +129,18 @@ static uint32_t zend_always_inline zend_hash_check_size(uint32_t nSize)
 #endif
 }
 
+/* 检查到flags没有 HASH_FLAG_INITIALIZED 标志就会到这里进行实际内存的初始化 */
 static void zend_always_inline zend_hash_real_init_ex(HashTable *ht, int packed)
 {
 	HT_ASSERT(GC_REFCOUNT(ht) == 1);
 	ZEND_ASSERT(!((ht)->u.flags & HASH_FLAG_INITIALIZED));
-	if (packed) {
-		HT_SET_DATA_ADDR(ht, pemalloc(HT_SIZE(ht), (ht)->u.flags & HASH_FLAG_PERSISTENT));
-		(ht)->u.flags |= HASH_FLAG_INITIALIZED | HASH_FLAG_PACKED;
+	if (packed) { // 是否压缩
+		/* 这里开始真正的分配了内存 */
+		HT_SET_DATA_ADDR(ht, pemalloc(HT_SIZE(ht), (ht)->u.flags & HASH_FLAG_PERSISTENT/* 是否使用持久内存 */));
+		(ht)->u.flags |= HASH_FLAG_INITIALIZED | HASH_FLAG_PACKED; // 打上标记
 		HT_HASH_RESET_PACKED(ht);
 	} else {
+		/* 压不压缩的区别就在于不压缩 将size给了mask,压缩的话mask是最开始init时候分配的2个 */
 		(ht)->nTableMask = -(ht)->nTableSize;
 		HT_SET_DATA_ADDR(ht, pemalloc(HT_SIZE(ht), (ht)->u.flags & HASH_FLAG_PERSISTENT));
 		(ht)->u.flags |= HASH_FLAG_INITIALIZED;
@@ -156,29 +161,32 @@ static void zend_always_inline zend_hash_real_init_ex(HashTable *ht, int packed)
 	}
 }
 
+/* 通过判断flags，检查ht是否真正初始化了 */
 static void zend_always_inline zend_hash_check_init(HashTable *ht, int packed)
-{
-	HT_ASSERT(GC_REFCOUNT(ht) == 1);
+{ 
+	HT_ASSERT(GC_REFCOUNT(ht) == 1); // 断言gc必须为1
 	if (UNEXPECTED(!((ht)->u.flags & HASH_FLAG_INITIALIZED))) {
+		/* 还没初始化？ */
 		zend_hash_real_init_ex(ht, packed);
 	}
 }
 
+/* 检查是否已经分配了内存了 */
 #define CHECK_INIT(ht, packed) \
 	zend_hash_check_init(ht, packed)
 
 static const uint32_t uninitialized_bucket[-HT_MIN_MASK] =
 	{HT_INVALID_IDX, HT_INVALID_IDX};
 
-/* 真正的hashtables初始化函数 */
+/* 真正的hashtables初始化函数，初始化不会分配arData的内存 */
 ZEND_API void ZEND_FASTCALL _zend_hash_init(HashTable *ht, uint32_t nSize, dtor_func_t pDestructor, zend_bool persistent ZEND_FILE_LINE_DC)
 {
-	GC_REFCOUNT(ht) = 1;
-	GC_TYPE_INFO(ht) = IS_ARRAY;
+	GC_REFCOUNT(ht) = 1; // gc的引用为1
+	GC_TYPE_INFO(ht) = IS_ARRAY; // gc的类型为array
 	ht->u.flags = (persistent ? HASH_FLAG_PERSISTENT : 0) | HASH_FLAG_APPLY_PROTECTION | HASH_FLAG_STATIC_KEYS;
-	ht->nTableSize = zend_hash_check_size(nSize);
-	ht->nTableMask = HT_MIN_MASK;
-	HT_SET_DATA_ADDR(ht, &uninitialized_bucket);
+	ht->nTableSize = zend_hash_check_size(nSize); // 表的规模，2^n
+	ht->nTableMask = HT_MIN_MASK; // 临时值，最小两个
+	HT_SET_DATA_ADDR(ht, &uninitialized_bucket); // 临时设置 arData
 	ht->nNumUsed = 0;
 	ht->nNumOfElements = 0;
 	ht->nInternalPointer = HT_INVALID_IDX;
@@ -487,6 +495,7 @@ ZEND_API void ZEND_FASTCALL _zend_hash_iterators_update(HashTable *ht, HashPosit
 	}
 }
 
+/* 从ht中查找key的bucket */
 static zend_always_inline Bucket *zend_hash_find_bucket(const HashTable *ht, zend_string *key)
 {
 	zend_ulong h;
@@ -494,21 +503,22 @@ static zend_always_inline Bucket *zend_hash_find_bucket(const HashTable *ht, zen
 	uint32_t idx;
 	Bucket *p, *arData;
 
-	h = zend_string_hash_val(key);
-	arData = ht->arData;
-	nIndex = h | ht->nTableMask;
-	idx = HT_HASH_EX(arData, nIndex);
+	h = zend_string_hash_val(key); // 计算h的值
+	arData = ht->arData; 
+	nIndex = h | ht->nTableMask; // 计算中间映射表的位置
+	idx = HT_HASH_EX(arData, nIndex); // 得到Bucket的idx
 	while (EXPECTED(idx != HT_INVALID_IDX)) {
-		p = HT_HASH_TO_BUCKET_EX(arData, idx);
+		p = HT_HASH_TO_BUCKET_EX(arData, idx); // 获取Bucket
 		if (EXPECTED(p->key == key)) { /* check for the same interned string */
-			return p;
+			return p; // 内部字符串，确认key相等就返回
 		} else if (EXPECTED(p->h == h) &&
 		     EXPECTED(p->key) &&
 		     EXPECTED(ZSTR_LEN(p->key) == ZSTR_LEN(key)) &&
 		     EXPECTED(memcmp(ZSTR_VAL(p->key), ZSTR_VAL(key), ZSTR_LEN(key)) == 0)) {
+				 /* 确认key，h和value都相等，返回 */
 			return p;
 		}
-		idx = Z_NEXT(p->val);
+		idx = Z_NEXT(p->val); // 继续检查下一个冲突了的Bucket
 	}
 	return NULL;
 }
@@ -569,7 +579,7 @@ static zend_always_inline zval *_zend_hash_add_or_update_i(HashTable *ht, zend_s
 
 	if (UNEXPECTED(!(ht->u.flags & HASH_FLAG_INITIALIZED))) {
 		/* 判断flags是否已经拥有 HASH_FLAG_INITIALIZED 标志 */
-		CHECK_INIT(ht, 0); /* zend_hash_check_init(ht, packed) */
+		CHECK_INIT(ht, 0); /* 检查是否真正初始化 zend_hash_check_init(ht, packed) */
 		goto add_to_hash;
 	} else if (ht->u.flags & HASH_FLAG_PACKED) {
 		zend_hash_packed_to_hash(ht);
@@ -612,26 +622,27 @@ static zend_always_inline zval *_zend_hash_add_or_update_i(HashTable *ht, zend_s
 
 	ZEND_HASH_IF_FULL_DO_RESIZE(ht);		/* If the Hash table is full, resize it */
 
-add_to_hash:
+add_to_hash: // 插入值到ht
 	HANDLE_BLOCK_INTERRUPTIONS();
-	idx = ht->nNumUsed++;
-	ht->nNumOfElements++;
+	idx = ht->nNumUsed++; // 分配一个idx
+	ht->nNumOfElements++; // 表内元素+1
 	if (ht->nInternalPointer == HT_INVALID_IDX) {
-		ht->nInternalPointer = idx;
+		ht->nInternalPointer = idx; // idx保存到内部"指针"上
 	}
 	zend_hash_iterators_update(ht, HT_INVALID_IDX, idx);
-	p = ht->arData + idx;
-	p->key = key;
+	p = ht->arData + idx; // 插入的Bucket位置
+	p->key = key; // 把key写入
 	if (!ZSTR_IS_INTERNED(key)) {
-		zend_string_addref(key);
-		ht->u.flags &= ~HASH_FLAG_STATIC_KEYS;
-		zend_string_hash_val(key);
+		/* 如果不是内部字符串类型 */
+		zend_string_addref(key); // 增加字符串引用
+		ht->u.flags &= ~HASH_FLAG_STATIC_KEYS; // 干掉这个标记
+		zend_string_hash_val(key); // 保存这个字符串的h值
 	}
-	p->h = h = ZSTR_H(key);
+	p->h = h = ZSTR_H(key); // 获取key的h值
 	ZVAL_COPY_VALUE(&p->val, pData);
-	nIndex = h | ht->nTableMask;
-	Z_NEXT(p->val) = HT_HASH(ht, nIndex);
-	HT_HASH(ht, nIndex) = HT_IDX_TO_HASH(idx);
+	nIndex = h | ht->nTableMask; // 计算出映射表的index
+	Z_NEXT(p->val) = HT_HASH(ht, nIndex); // 将映射表中原来的值保存到新的Bucket中，哈希冲突会用到
+	HT_HASH(ht, nIndex) = HT_IDX_TO_HASH(idx); // 保存Bucket的下标到映射表中
 	HANDLE_UNBLOCK_INTERRUPTIONS();
 
 	return &p->val;
@@ -878,6 +889,7 @@ ZEND_API zval* ZEND_FASTCALL _zend_hash_next_index_insert_new(HashTable *ht, zva
 	return _zend_hash_index_add_or_update_i(ht, ht->nNextFreeElement, pData, HASH_ADD | HASH_ADD_NEW | HASH_ADD_NEXT ZEND_FILE_LINE_RELAY_CC);
 }
 
+/* 哈希表扩容 */
 static void ZEND_FASTCALL zend_hash_do_resize(HashTable *ht)
 {
 
@@ -885,12 +897,14 @@ static void ZEND_FASTCALL zend_hash_do_resize(HashTable *ht)
 	HT_ASSERT(GC_REFCOUNT(ht) == 1);
 
 	if (ht->nNumUsed > ht->nNumOfElements + (ht->nNumOfElements >> 5)) { /* additional term is there to amortize the cost of compaction */
+		/* 重做Hash表 */
 		HANDLE_BLOCK_INTERRUPTIONS();
-		zend_hash_rehash(ht);
+		zend_hash_rehash(ht); // 将UNDEF的Bucket删除
 		HANDLE_UNBLOCK_INTERRUPTIONS();
 	} else if (ht->nTableSize < HT_MAX_SIZE) {	/* Let's double the table size */
+		/* 把容量直接扩大两倍 */
 		void *new_data, *old_data = HT_GET_DATA_ADDR(ht);
-		uint32_t nSize = ht->nTableSize + ht->nTableSize;
+		uint32_t nSize = ht->nTableSize + ht->nTableSize; // 加法比乘法快
 		Bucket *old_buckets = ht->arData;
 
 		HANDLE_BLOCK_INTERRUPTIONS();
@@ -907,6 +921,7 @@ static void ZEND_FASTCALL zend_hash_do_resize(HashTable *ht)
 	}
 }
 
+/* 重建中间的映射表，删除UNDEF的Bucket，然后重新建立映射表 */
 ZEND_API int ZEND_FASTCALL zend_hash_rehash(HashTable *ht)
 {
 	Bucket *p;
@@ -926,6 +941,7 @@ ZEND_API int ZEND_FASTCALL zend_hash_rehash(HashTable *ht)
 	i = 0;
 	p = ht->arData;
 	if (ht->nNumUsed == ht->nNumOfElements) {
+		/* 没有被标记UNDEF的数据 */
 		do {
 			nIndex = p->h | ht->nTableMask;
 			Z_NEXT(p->val) = HT_HASH(ht, nIndex);

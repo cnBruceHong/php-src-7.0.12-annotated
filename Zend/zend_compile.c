@@ -1079,6 +1079,7 @@ ZEND_API zend_class_entry *do_bind_inherited_class(const zend_op_array *op_array
 }
 /* }}} */
 
+/* 前期绑定 */
 void zend_do_early_binding(void) /* {{{ */
 {
 	zend_op *opline = &CG(active_op_array)->opcodes[CG(active_op_array)->last-1];
@@ -2755,6 +2756,7 @@ uint32_t zend_compile_args(zend_ast *ast, zend_function *fbc) /* {{{ */
 	zend_bool uses_arg_unpack = 0;
 	uint32_t arg_count = 0; /* number of arguments not including unpacks */
 
+	/* 对每个参数生成指令 */
 	for (i = 0; i < args->children; ++i) {
 		zend_ast *arg = args->child[i];
 		uint32_t arg_num = i + 1;
@@ -2860,12 +2862,14 @@ ZEND_API zend_uchar zend_get_call_op(zend_uchar init_op, zend_function *fbc) /* 
 {
 	if (fbc) {
 		if (fbc->type == ZEND_INTERNAL_FUNCTION) {
+			/* 如果函数是内部函数 */
 			if (!zend_execute_internal &&
 			    !fbc->common.scope &&
 			    !(fbc->common.fn_flags & (ZEND_ACC_ABSTRACT|ZEND_ACC_DEPRECATED|ZEND_ACC_HAS_TYPE_HINTS|ZEND_ACC_RETURN_REFERENCE))) {
 				return ZEND_DO_ICALL;
 			}
 		} else {
+			/* 函数是一个生成器类型 */
 			if (zend_execute_ex == execute_ex &&
 			    !(fbc->common.fn_flags & ZEND_ACC_GENERATOR)) {
 				return ZEND_DO_UCALL;
@@ -2875,7 +2879,7 @@ ZEND_API zend_uchar zend_get_call_op(zend_uchar init_op, zend_function *fbc) /* 
 	           !zend_execute_internal &&
 	           (init_op == ZEND_INIT_FCALL_BY_NAME ||
 	            init_op == ZEND_INIT_NS_FCALL_BY_NAME)) {
-		return ZEND_DO_FCALL_BY_NAME;
+		return ZEND_DO_FCALL_BY_NAME; // 函数未定义
 	}
 	return ZEND_DO_FCALL;
 }
@@ -2890,6 +2894,7 @@ void zend_compile_call_common(znode *result, zend_ast *args_ast, zend_function *
 
 	zend_do_extended_fcall_begin();
 
+	/* 编译函数参数指令 */
 	arg_count = zend_compile_args(args_ast, fbc);
 
 	opline = &CG(active_op_array)->opcodes[opnum_init];
@@ -3264,14 +3269,16 @@ int zend_try_compile_special_func(znode *result, zend_string *lcname, zend_ast_l
 }
 /* }}} */
 
+/* 编译函数调用 */
 void zend_compile_call(znode *result, zend_ast *ast, uint32_t type) /* {{{ */
 {
-	zend_ast *name_ast = ast->child[0];
-	zend_ast *args_ast = ast->child[1];
+	zend_ast *name_ast = ast->child[0];  	// 函数名称
+	zend_ast *args_ast = ast->child[1];		// 参数列表
 
 	znode name_node;
 
 	if (name_ast->kind != ZEND_AST_ZVAL || Z_TYPE_P(zend_ast_get_zval(name_ast)) != IS_STRING) {
+		/* 处理动态调用的情况 */
 		zend_compile_expr(&name_node, name_ast);
 		zend_compile_dynamic_call(result, &name_node, args_ast);
 		return;
@@ -3297,7 +3304,7 @@ void zend_compile_call(znode *result, zend_ast *ast, uint32_t type) /* {{{ */
 
 		lcname = zend_string_tolower(Z_STR_P(name));
 
-		fbc = zend_hash_find_ptr(CG(function_table), lcname);
+		fbc = zend_hash_find_ptr(CG(function_table), lcname); // 查找函数时候定义，fbc是一个指向zval的指针
 		if (!fbc
 		 || (fbc->type == ZEND_INTERNAL_FUNCTION && (CG(compiler_options) & ZEND_COMPILE_IGNORE_INTERNAL_FUNCTIONS))
 		 || (fbc->type == ZEND_USER_FUNCTION && (CG(compiler_options) & ZEND_COMPILE_IGNORE_USER_FUNCTIONS))
@@ -3318,10 +3325,10 @@ void zend_compile_call(znode *result, zend_ast *ast, uint32_t type) /* {{{ */
 		zval_ptr_dtor(&name_node.u.constant);
 		ZVAL_NEW_STR(&name_node.u.constant, lcname);
 
-		opline = zend_emit_op(NULL, ZEND_INIT_FCALL, NULL, &name_node);
+		opline = zend_emit_op(NULL, ZEND_INIT_FCALL, NULL, &name_node); // 生成函数调用指令
 		zend_alloc_cache_slot(opline->op2.constant);
 
-		zend_compile_call_common(result, args_ast, fbc);
+		zend_compile_call_common(result, args_ast, fbc); // 生成参数发送指令
 	}
 }
 /* }}} */
@@ -3527,6 +3534,7 @@ static void zend_compile_static_var_common(zend_ast *var_ast, zval *value, zend_
 		}
 		CG(active_op_array)->static_variables = zend_array_dup(CG(active_op_array)->static_variables);
 	}
+	/* 插入一个static变量到static哈希表 */
 	zend_hash_update(CG(active_op_array)->static_variables, Z_STR(var_node.u.constant), value);
 
 	opline = zend_emit_op(&result, by_ref ? ZEND_FETCH_W : ZEND_FETCH_R, &var_node, NULL);
@@ -3542,6 +3550,7 @@ static void zend_compile_static_var_common(zend_ast *var_ast, zval *value, zend_
 }
 /* }}} */
 
+/* static变量编译函数 */
 void zend_compile_static_var(zend_ast *ast) /* {{{ */
 {
 	zend_ast *var_ast = ast->child[0];
@@ -3549,6 +3558,7 @@ void zend_compile_static_var(zend_ast *ast) /* {{{ */
 	zval value_zv;
 
 	if (value_ast) {
+		/* 把右边的ast进行编译 static $a = 4 这里的4 */
 		zend_const_expr_to_zval(&value_zv, value_ast);
 	} else {
 		ZVAL_NULL(&value_zv);
@@ -4511,12 +4521,14 @@ static void zend_compile_typename(zend_ast *ast, zend_arg_info *arg_info) /* {{{
 
 void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 {
+	/* ZEND_AST_PARAM 函数参数编译 */
 	zend_ast_list *list = zend_ast_get_list(ast);
 	uint32_t i;
 	zend_op_array *op_array = CG(active_op_array);
-	zend_arg_info *arg_infos;
+	zend_arg_info *arg_infos; // 函数参数链表
 	
 	if (return_type_ast) {
+		/* 如果有返回值 */
 		/* Use op_array->arg_info[-1] for return type */
 		arg_infos = safe_emalloc(sizeof(zend_arg_info), list->children + 1, 0);
 		arg_infos->name = NULL;
@@ -4528,7 +4540,7 @@ void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 
 		zend_compile_typename(return_type_ast, arg_infos);
 
-		arg_infos++;
+		arg_infos++; // 链表参数后移，这里开始才是函数的参数arg_info结构链表
 		op_array->fn_flags |= ZEND_ACC_HAS_RETURN_TYPE;
 	} else {
 		if (list->children == 0) {
@@ -4538,13 +4550,14 @@ void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 	}
 
 	for (i = 0; i < list->children; ++i) {
-		zend_ast *param_ast = list->child[i];
-		zend_ast *type_ast = param_ast->child[0];
-		zend_ast *var_ast = param_ast->child[1];
-		zend_ast *default_ast = param_ast->child[2];
+		/* 遍历每个参数节点 */
+		zend_ast *param_ast = list->child[i]; 			// 取出子树
+		zend_ast *type_ast = param_ast->child[0];		// 参数类型
+		zend_ast *var_ast = param_ast->child[1];		// 参数名
+		zend_ast *default_ast = param_ast->child[2];	// 默认值
 		zend_string *name = zend_ast_get_str(var_ast);
-		zend_bool is_ref = (param_ast->attr & ZEND_PARAM_REF) != 0;
-		zend_bool is_variadic = (param_ast->attr & ZEND_PARAM_VARIADIC) != 0;
+		zend_bool is_ref = (param_ast->attr & ZEND_PARAM_REF) != 0; // 确定是否是引用
+		zend_bool is_variadic = (param_ast->attr & ZEND_PARAM_VARIADIC) != 0; // 是否为可变参数，...这个
 
 		znode var_node, default_node;
 		zend_uchar opcode;
@@ -4557,12 +4570,12 @@ void zend_compile_params(zend_ast *ast, zend_ast *return_type_ast) /* {{{ */
 		}
 
 		var_node.op_type = IS_CV;
-		var_node.u.op.var = lookup_cv(CG(active_op_array), zend_string_copy(name));
+		var_node.u.op.var = lookup_cv(CG(active_op_array), zend_string_copy(name)); // 得到CV变量的位置
 
-		if (EX_VAR_TO_NUM(var_node.u.op.var) != i) {
+		if (EX_VAR_TO_NUM(var_node.u.op.var) != i) { // 如果是重复定义，那么肯定位置和当前的i不一致
 			zend_error_noreturn(E_COMPILE_ERROR, "Redefinition of parameter $%s",
 				ZSTR_VAL(name));
-		} else if (zend_string_equals_literal(name, "this")) {
+		} else if (zend_string_equals_literal(name, "this")) { // 你居然敢用this当参数名？
 			if ((op_array->scope || (op_array->fn_flags & ZEND_ACC_CLOSURE))
 					&& (op_array->fn_flags & ZEND_ACC_STATIC) == 0) {
 				zend_error_noreturn(E_COMPILE_ERROR, "Cannot use $this as parameter");
@@ -4915,38 +4928,40 @@ static void zend_begin_func_decl(znode *result, zend_op_array *op_array, zend_as
 	}
 
 	if (op_array->fn_flags & ZEND_ACC_CLOSURE) {
+		/* 如果是闭包函数 */
 		opline = zend_emit_op_tmp(result, ZEND_DECLARE_LAMBDA_FUNCTION, NULL, NULL);
 	} else {
-		opline = get_next_op(CG(active_op_array));
-		opline->opcode = ZEND_DECLARE_FUNCTION;
-		opline->op2_type = IS_CONST;
+		opline = get_next_op(CG(active_op_array)); // 获取新的opline空间
+		opline->opcode = ZEND_DECLARE_FUNCTION; // 定义为 ZEND_DECLARE_FUNCTION
+		opline->op2_type = IS_CONST; // 参数2的类型为CONST
 		LITERAL_STR(opline->op2, zend_string_copy(lcname));
 	}
 
 	{
 		zend_string *key = zend_build_runtime_definition_key(lcname, decl->lex_pos);
 
-		opline->op1_type = IS_CONST;
+		opline->op1_type = IS_CONST;  // 参数1 也是CONST
 		LITERAL_STR(opline->op1, key);
 
-		zend_hash_update_ptr(CG(function_table), key, op_array);
+		zend_hash_update_ptr(CG(function_table), key, op_array); // 更新函数表
 	}
 
 	zend_string_release(lcname);
 }
 /* }}} */
 
+/* 编译函数 */
 void zend_compile_func_decl(znode *result, zend_ast *ast) /* {{{ */
 {
-	zend_ast_decl *decl = (zend_ast_decl *) ast;
-	zend_ast *params_ast = decl->child[0];
-	zend_ast *uses_ast = decl->child[1];
-	zend_ast *stmt_ast = decl->child[2];
-	zend_ast *return_type_ast = decl->child[3];
+	zend_ast_decl *decl = (zend_ast_decl *) ast;		// 函数声明
+	zend_ast *params_ast = decl->child[0];				// 参数列表
+	zend_ast *uses_ast = decl->child[1];				// use 
+	zend_ast *stmt_ast = decl->child[2];	 			// 函数体
+	zend_ast *return_type_ast = decl->child[3]; 		// 返回参数
 	zend_bool is_method = decl->kind == ZEND_AST_METHOD;
 
-	zend_op_array *orig_op_array = CG(active_op_array);
-	zend_op_array *op_array = zend_arena_alloc(&CG(arena), sizeof(zend_op_array));
+	zend_op_array *orig_op_array = CG(active_op_array); // 保存当前编译的 op_array
+	zend_op_array *op_array = zend_arena_alloc(&CG(arena), sizeof(zend_op_array)); // 创建新的 op_array
 	zend_oparray_context orig_oparray_context;
 
 	init_op_array(op_array, ZEND_USER_FUNCTION, INITIAL_OP_ARRAY_SIZE);
@@ -4955,6 +4970,7 @@ void zend_compile_func_decl(znode *result, zend_ast *ast) /* {{{ */
 	op_array->fn_flags |= decl->flags;
 	op_array->line_start = decl->start_lineno;
 	op_array->line_end = decl->end_lineno;
+	/* 函数的注释 */
 	if (decl->doc_comment) {
 		op_array->doc_comment = zend_string_copy(decl->doc_comment);
 	}
@@ -4963,15 +4979,17 @@ void zend_compile_func_decl(znode *result, zend_ast *ast) /* {{{ */
 	}
 
 	if (is_method) {
+		/* 如果是类内方法 */
 		zend_bool has_body = stmt_ast != NULL;
 		zend_begin_method_decl(op_array, decl->name, has_body);
 	} else {
-		zend_begin_func_decl(result, op_array, decl);
+		/* 普通用户函数 */
+		zend_begin_func_decl(result, op_array, decl); // 编译函数声明指令
 	}
 
 	CG(active_op_array) = op_array;
 
-	zend_oparray_context_begin(&orig_oparray_context);
+	zend_oparray_context_begin(&orig_oparray_context); // 初始化了当前CG的context
 
 	if (CG(compiler_options) & ZEND_COMPILE_EXTENDED_INFO) {
 		zend_op *opline_ext = zend_emit_op(NULL, ZEND_EXT_NOP, NULL, NULL);
@@ -4986,7 +5004,7 @@ void zend_compile_func_decl(znode *result, zend_ast *ast) /* {{{ */
 		zend_stack_push(&CG(loop_var_stack), (void *) &dummy_var);
 	}
 
-	zend_compile_params(params_ast, return_type_ast);
+	zend_compile_params(params_ast, return_type_ast); // 同时编译函数参数和返回值参数编译
 	if (uses_ast) {
 		zend_compile_closure_uses(uses_ast);
 	}
