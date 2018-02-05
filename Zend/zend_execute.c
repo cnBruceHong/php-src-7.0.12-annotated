@@ -2114,6 +2114,7 @@ void zend_free_compiled_variables(zend_execute_data *execute_data) /* {{{ */
  *                             +----------------------------------------+
  */
 
+/* 初始化了一个函数运行EX堆栈 */
 static zend_always_inline void i_init_func_execute_data(zend_execute_data *execute_data, zend_op_array *op_array, zval *return_value, int check_this) /* {{{ */
 {
 	uint32_t first_extra_arg, num_args;

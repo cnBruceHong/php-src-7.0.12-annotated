@@ -2748,6 +2748,7 @@ void zend_compile_compound_assign(znode *result, zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+/* 编译函数参数 */
 uint32_t zend_compile_args(zend_ast *ast, zend_function *fbc) /* {{{ */
 {
 	/* TODO.AST &var error */
@@ -3947,14 +3948,14 @@ void zend_compile_for(zend_ast *ast) /* {{{ */
 	zend_compile_expr_list(&result, init_ast);
 	zend_do_free(&result);
 
-	opnum_jmp = zend_emit_jump(0);
+	opnum_jmp = zend_emit_jump(0); // 临时把opline->op1.opline_num设置为0,要等到statement编译后才知道
 
 	zend_begin_loop(ZEND_NOP, NULL);
 
-	opnum_start = get_next_op_number(CG(active_op_array));
-	zend_compile_stmt(stmt_ast);
+	opnum_start = get_next_op_number(CG(active_op_array)); // 循环体开始
+	zend_compile_stmt(stmt_ast); // 编译循环体
 
-	opnum_loop = get_next_op_number(CG(active_op_array));
+	opnum_loop = get_next_op_number(CG(active_op_array));  // loop条件起始
 	zend_compile_expr_list(&result, loop_ast);
 	zend_do_free(&result);
 
@@ -3968,13 +3969,14 @@ void zend_compile_for(zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+/* 编译foreach语句 */
 void zend_compile_foreach(zend_ast *ast) /* {{{ */
 {
-	zend_ast *expr_ast = ast->child[0];
-	zend_ast *value_ast = ast->child[1];
-	zend_ast *key_ast = ast->child[2];
-	zend_ast *stmt_ast = ast->child[3];
-	zend_bool by_ref = value_ast->kind == ZEND_AST_REF;
+	zend_ast *expr_ast = ast->child[0];		// $arr 
+	zend_ast *value_ast = ast->child[1]; 	// $v
+	zend_ast *key_ast = ast->child[2]; 		// $k or null
+	zend_ast *stmt_ast = ast->child[3];		// statement
+	zend_bool by_ref = value_ast->kind == ZEND_AST_REF; // $v是否是引用类型
 	zend_bool is_variable = zend_is_variable(expr_ast) && !zend_is_call(expr_ast)
 		&& zend_can_write_to_variable(expr_ast);
 
@@ -4005,6 +4007,7 @@ void zend_compile_foreach(zend_ast *ast) /* {{{ */
 		zend_separate_if_call_and_write(&expr_node, expr_ast, BP_VAR_W);
 	}
 
+	/* 编译ZEND_FE_RESET_R指令 */
 	opnum_reset = get_next_op_number(CG(active_op_array));
 	opline = zend_emit_op(&reset_node, by_ref ? ZEND_FE_RESET_RW : ZEND_FE_RESET_R, &expr_node, NULL);
 
@@ -4021,14 +4024,14 @@ void zend_compile_foreach(zend_ast *ast) /* {{{ */
 		if (by_ref) {
 			zend_emit_assign_ref_znode(value_ast, &value_node);
 		} else {
-			zend_emit_assign_znode(value_ast, &value_node);
+			zend_emit_assign_znode(value_ast, &value_node); // 产生一条assign to value
 		}
 	}
 
 	if (key_ast) {
 		opline = &CG(active_op_array)->opcodes[opnum_fetch];
 		zend_make_tmp_result(&key_node, opline);
-		zend_emit_assign_znode(key_ast, &key_node);
+		zend_emit_assign_znode(key_ast, &key_node); // 产生一个assign to key
 	}
 
 	zend_begin_loop(ZEND_FE_FREE, &reset_node);
@@ -4068,23 +4071,23 @@ void zend_compile_if(zend_ast *ast) /* {{{ */
 		uint32_t opnum_jmpz;
 		if (cond_ast) {
 			zend_compile_expr(&cond_node, cond_ast);
-			opnum_jmpz = zend_emit_cond_jump(ZEND_JMPZ, &cond_node, 0);
+			opnum_jmpz = zend_emit_cond_jump(ZEND_JMPZ, &cond_node, 0); // 编译 ZEND_JMPZ
 		}
 
 		zend_compile_stmt(stmt_ast);
 
 		if (i != list->children - 1) {
-			jmp_opnums[i] = zend_emit_jump(0);
+			jmp_opnums[i] = zend_emit_jump(0); // 获取下一条opline的位置
 		}
 
 		if (cond_ast) {
-			zend_update_jump_target_to_next(opnum_jmpz);
+			zend_update_jump_target_to_next(opnum_jmpz); // codition未成功的跳转
 		}
 	}
 
 	if (list->children > 1) {
 		for (i = 0; i < list->children - 1; ++i) {
-			zend_update_jump_target_to_next(jmp_opnums[i]);
+			zend_update_jump_target_to_next(jmp_opnums[i]); // 执行完statement的跳转
 		}
 		efree(jmp_opnums);
 	}
@@ -5031,10 +5034,11 @@ void zend_compile_func_decl(znode *result, zend_ast *ast) /* {{{ */
 }
 /* }}} */
 
+/* 编译类内成员属性 */
 void zend_compile_prop_decl(zend_ast *ast) /* {{{ */
 {
 	zend_ast_list *list = zend_ast_get_list(ast);
-	uint32_t flags = list->attr;
+	uint32_t flags = list->attr; // 是否是静态
 	zend_class_entry *ce = CG(active_class_entry);
 	uint32_t i, children = list->children;
 
@@ -5066,6 +5070,7 @@ void zend_compile_prop_decl(zend_ast *ast) /* {{{ */
 				ZSTR_VAL(ce->name), ZSTR_VAL(name));
 		}
 
+		/* 检查是否重复定义 */
 		if (zend_hash_exists(&ce->properties_info, name)) {
 			zend_error_noreturn(E_COMPILE_ERROR, "Cannot redeclare %s::$%s",
 				ZSTR_VAL(ce->name), ZSTR_VAL(name));
@@ -5078,11 +5083,12 @@ void zend_compile_prop_decl(zend_ast *ast) /* {{{ */
 		}
 
 		name = zend_new_interned_string_safe(name);
-		zend_declare_property_ex(ce, name, &value_zv, flags, doc_comment);
+		zend_declare_property_ex(ce, name, &value_zv, flags, doc_comment); // 创建属性的 class_property_info
 	}
 }
 /* }}} */
 
+/* 编译类内const */
 void zend_compile_class_const_decl(zend_ast *ast) /* {{{ */
 {
 	zend_ast_list *list = zend_ast_get_list(ast);
@@ -5094,6 +5100,7 @@ void zend_compile_class_const_decl(zend_ast *ast) /* {{{ */
 		return;
 	}
 
+	/* 类内可能有多个const */
 	for (i = 0; i < list->children; ++i) {
 		zend_ast *const_ast = list->child[i];
 		zend_ast *name_ast = const_ast->child[0];
@@ -5109,6 +5116,7 @@ void zend_compile_class_const_decl(zend_ast *ast) /* {{{ */
 		zend_const_expr_to_zval(&value_zv, value_ast);
 
 		name = zend_new_interned_string_safe(name);
+		/* 添加 CONST 到 ce 的 constants_table 中 */
 		if (zend_hash_add(&ce->constants_table, name, &value_zv) == NULL) {
 			zend_error_noreturn(E_COMPILE_ERROR, "Cannot redefine class constant %s::%s",
 				ZSTR_VAL(ce->name), ZSTR_VAL(name));
@@ -5295,6 +5303,7 @@ static zend_string *zend_generate_anon_class_name(unsigned char *lex_pos) /* {{{
 }
 /* }}} */
 
+/* 类的编译 */
 void zend_compile_class_decl(zend_ast *ast) /* {{{ */
 {
 	zend_ast_decl *decl = (zend_ast_decl *) ast;
@@ -5306,8 +5315,8 @@ void zend_compile_class_decl(zend_ast *ast) /* {{{ */
 	zend_op *opline;
 	znode declare_node, extends_node;
 
-	zend_class_entry *original_ce = CG(active_class_entry);
-	znode original_implementing_class = FC(implementing_class);
+	zend_class_entry *original_ce = CG(active_class_entry);		// 保存下CG
+	znode original_implementing_class = FC(implementing_class); // 保存下FC
 
 	if (EXPECTED((decl->flags & ZEND_ACC_ANON_CLASS) == 0)) {
 		zend_string *unqualified_name = decl->name;
@@ -5317,9 +5326,9 @@ void zend_compile_class_decl(zend_ast *ast) /* {{{ */
 		}
 
 		zend_assert_valid_class_name(unqualified_name);
-		name = zend_prefix_with_ns(unqualified_name);
-		name = zend_new_interned_string(name);
-		lcname = zend_string_tolower(name);
+		name = zend_prefix_with_ns(unqualified_name);	 // 处理命名空间
+		name = zend_new_interned_string(name);		
+		lcname = zend_string_tolower(name);  			 // 名称全部为小写		
 
 		if (FC(imports)) {
 			zend_string *import_name = zend_hash_find_ptr_lc(
@@ -5335,37 +5344,39 @@ void zend_compile_class_decl(zend_ast *ast) /* {{{ */
 	}
 	lcname = zend_new_interned_string(lcname);
 
-	ce->type = ZEND_USER_CLASS;
+	ce->type = ZEND_USER_CLASS;  // 定义为用户类
 	ce->name = name;
 	zend_initialize_class_data(ce, 1);
 
-	ce->ce_flags |= decl->flags;
+	ce->ce_flags |= decl->flags;		// 处理类修饰符
 	ce->info.user.filename = zend_get_compiled_filename();
 	ce->info.user.line_start = decl->start_lineno;
 	ce->info.user.line_end = decl->end_lineno;
 
-	if (decl->doc_comment) {
+	if (decl->doc_comment) { // 如果类有注释
 		ce->info.user.doc_comment = zend_string_copy(decl->doc_comment);
 	}
 
 	if (UNEXPECTED((decl->flags & ZEND_ACC_ANON_CLASS))) {
 		/* Serialization is not supported for anonymous classes */
+		/* 匿名类不能被序列化 */
 		ce->serialize = zend_class_serialize_deny;
 		ce->unserialize = zend_class_unserialize_deny;
 	}
 
 	if (extends_ast) {
+		/* 处理类的继承 */
 		if (!zend_is_const_default_class_ref(extends_ast)) {
 			zend_string *extends_name = zend_ast_get_str(extends_ast);
 			zend_error_noreturn(E_COMPILE_ERROR,
 				"Cannot use '%s' as class name as it is reserved", ZSTR_VAL(extends_name));
 		}
 
-		zend_compile_class_ref(&extends_node, extends_ast, 0);
+		zend_compile_class_ref(&extends_node, extends_ast, 0); // 如果有继承，会产生 ZEND_FETCH_CLASS
 	}
 
 	opline = get_next_op(CG(active_op_array));
-	zend_make_var_result(&declare_node, opline);
+	zend_make_var_result(&declare_node, opline); // opline 的 result 是一个var
 
 	/* TODO.AST drop this */
 	GET_NODE(&FC(implementing_class), opline->result);
@@ -5407,12 +5418,12 @@ void zend_compile_class_decl(zend_ast *ast) /* {{{ */
 		opline->op1_type = IS_CONST;
 		LITERAL_STR(opline->op1, key);
 
-		zend_hash_update_ptr(CG(class_table), key, ce);
+		zend_hash_update_ptr(CG(class_table), key, ce); // 更新了CG(class_table)
 	}
 
 	CG(active_class_entry) = ce;
 
-	zend_compile_stmt(stmt_ast);
+	zend_compile_stmt(stmt_ast); // 编译类内语句
 
 	/* Reset lineno for final opcodes and errors */
 	CG(zend_lineno) = ast->lineno;
@@ -5721,6 +5732,7 @@ void zend_compile_const_decl(zend_ast *ast) /* {{{ */
 }
 /* }}}*/
 
+/* 编译命名空间 */
 void zend_compile_namespace(zend_ast *ast) /* {{{ */
 {
 	zend_ast *name_ast = ast->child[0];

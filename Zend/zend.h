@@ -129,20 +129,20 @@ typedef struct _zend_trait_alias {
 } zend_trait_alias;
 
 struct _zend_class_entry {
-	char type; 
+	char type;									// 类的类型 内部类or用户自定义类 
 	zend_string *name; 							// 类的名称
 	struct _zend_class_entry *parent;			// 继承的类
 	int refcount;								// 引用计数
-	uint32_t ce_flags;							// 类的标示
+	uint32_t ce_flags;							// 类的掩码，如标记是否是普通类、抽象类、接口等
 
-	int default_properties_count;
-	int default_static_members_count;
-	zval *default_properties_table;
-	zval *default_static_members_table;
-	zval *static_members_table;
+	int default_properties_count;				// 普通属性数
+	int default_static_members_count;			// 静态属性数
+	zval *default_properties_table;				// 普通属性表
+	zval *default_static_members_table;			// 静态属性表
+	zval *static_members_table;					// 如果是一个用户自定义类，和上面的静态属性表是一样的
 	HashTable function_table;					// 函数表
-	HashTable properties_info;					// 成员属性表
-	HashTable constants_table;					// 常量定义表
+	HashTable properties_info;					// 成员属性基本信息哈希表，key为成员名，value为 zend_property_info
+	HashTable constants_table;					// 常量符号表
 
 	/* 类的魔术方法定义 */
 	union _zend_function *constructor;
@@ -171,12 +171,12 @@ struct _zend_class_entry {
 	int (*serialize)(zval *object, unsigned char **buffer, size_t *buf_len, zend_serialize_data *data);
 	int (*unserialize)(zval *object, zend_class_entry *ce, const unsigned char *buf, size_t buf_len, zend_unserialize_data *data);
 
-	uint32_t num_interfaces;
-	uint32_t num_traits;
-	zend_class_entry **interfaces;
+	uint32_t num_interfaces; 			// 实现的接口数
+	uint32_t num_traits;				// 包含的trais数
+	zend_class_entry **interfaces;		// 实现的接口
 
-	zend_class_entry **traits;
-	zend_trait_alias **trait_aliases;
+	zend_class_entry **traits;			// 实现的trait
+	zend_trait_alias **trait_aliases;	
 	zend_trait_precedence **trait_precedences;
 
 	union {
@@ -190,7 +190,7 @@ struct _zend_class_entry {
 			const struct _zend_function_entry *builtin_functions;
 			struct _zend_module_entry *module;
 		} internal;
-	} info;
+	} info; // 类的信息，包括所在文件、起始行号、所属模块等信息
 };
 
 typedef struct _zend_utility_functions {

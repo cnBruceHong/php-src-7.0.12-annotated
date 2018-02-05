@@ -124,11 +124,12 @@ typedef struct _zend_oparray_context {
 } zend_oparray_context;
 
 /* Compilation context that is different for each file, but shared between op arrays. */
+/* 每个不同的文件都有一个编译文件上下文 */
 typedef struct _zend_file_context {
 	zend_declarables declarables;
 	znode implementing_class;
 
-	zend_string *current_namespace;
+	zend_string *current_namespace; 		// 当前的命令空间
 	zend_bool in_namespace;
 	zend_bool has_bracketed_namespaces;
 
@@ -278,7 +279,7 @@ typedef struct _zend_try_catch_element {
 
 char *zend_visibility_string(uint32_t fn_flags);
 
-/* 成员属性结构体 */
+/* 成员属性信息体 */
 typedef struct _zend_property_info {
 	uint32_t offset; /* property offset for object properties or
 	                      property index for static properties */

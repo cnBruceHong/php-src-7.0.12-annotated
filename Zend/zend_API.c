@@ -3607,6 +3607,7 @@ ZEND_API const char *zend_get_module_version(const char *module_name) /* {{{ */
 }
 /* }}} */
 
+/* 创建类的成员属性 */
 ZEND_API int zend_declare_property_ex(zend_class_entry *ce, zend_string *name, zval *property, int access_type, zend_string *doc_comment) /* {{{ */
 {
 	zend_property_info *property_info, *property_info_ptr;
@@ -3633,11 +3634,13 @@ ZEND_API int zend_declare_property_ex(zend_class_entry *ce, zend_string *name, z
 			zval_ptr_dtor(&ce->default_static_members_table[property_info->offset]);
 			zend_hash_del(&ce->properties_info, name);
 		} else {
-			property_info->offset = ce->default_static_members_count++;
+			/* 将static成员属性添加到default_static_members_table里 */
+			property_info->offset = ce->default_static_members_count++; // 计算静态成员属性的偏移量
 			ce->default_static_members_table = perealloc(ce->default_static_members_table, sizeof(zval) * ce->default_static_members_count, ce->type == ZEND_INTERNAL_CLASS);
 		}
-		ZVAL_COPY_VALUE(&ce->default_static_members_table[property_info->offset], property);
+		ZVAL_COPY_VALUE(&ce->default_static_members_table[property_info->offset], property); // 复制值
 		if (ce->type == ZEND_USER_CLASS) {
+			// 如果是一个用户自定义类的话，static_member_table和上面的是一样的
 			ce->static_members_table = ce->default_static_members_table;
 		}
 	} else {

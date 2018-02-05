@@ -102,7 +102,7 @@ typedef void (*copy_ctor_func_t)(zval *pElement);
 typedef union _zend_value {
 	zend_long         lval;				/* long value 长整型值 */
 	double            dval;				/* double value 双精度浮点值 */
-	zend_refcounted  *counted;  		/* 引用计数，php7迁移到这里来了 */
+	zend_refcounted  *counted;  		/* 获取不同类型结构的gc头部 */
 	zend_string      *str; 				/* 字符串值 */
 	zend_array       *arr; 				/* 数组 */
 	zend_object      *obj;				/* 对象指针，指向对象类型 */
@@ -169,7 +169,7 @@ struct _zend_string {
 	char              val[1]; 			/* 字符串的值，是一个可变数组 */
 };
 
-/* 哈希表中实际存放值的『桶』 */
+/* 哈希表中实际存值的『桶』 */
 typedef struct _Bucket {
 	zval              val;				/* 存放实际的值 */
 	zend_ulong        h;                /* hash value (or numeric index) 哈希值或者是整数值索引 */

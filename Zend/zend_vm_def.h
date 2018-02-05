@@ -5736,14 +5736,14 @@ ZEND_VM_HANDLER(77, ZEND_FE_RESET_R, CONST|TMP|VAR|CV, ANY)
 
 	SAVE_OPLINE();
 
-	array_ptr = GET_OP1_ZVAL_PTR_DEREF(BP_VAR_R);
+	array_ptr = GET_OP1_ZVAL_PTR_DEREF(BP_VAR_R); // 这里的宏是在gen.php生成的时候进行正则替换，取opline->op1的地址
 	if (EXPECTED(Z_TYPE_P(array_ptr) == IS_ARRAY)) {
-		result = EX_VAR(opline->result.var);
-		ZVAL_COPY_VALUE(result, array_ptr);
+		result = EX_VAR(opline->result.var); // result 为保存的副本的位置
+		ZVAL_COPY_VALUE(result, array_ptr);		// 把 $arr 拷贝到 result中
 		if (OP1_TYPE != IS_TMP_VAR && Z_OPT_REFCOUNTED_P(result)) {
 			Z_ADDREF_P(array_ptr);
 		}
-		Z_FE_POS_P(result) = 0;
+		Z_FE_POS_P(result) = 0;  // 对fe_pos置零
 
 		FREE_OP1_IF_VAR();
 		ZEND_VM_NEXT_OPCODE_CHECK_EXCEPTION();
